@@ -31,3 +31,8 @@ test('buildTree vraci strom s korenem = PROJECT_ID', async () => {
   assert.equal(tree.name, '20260807_Test');
   assert.ok(tree.children.some((c) => c.name === '00_PROJECT_CONTROL'));
 });
+
+test('generatePowerShell je odstranen (mrtvy kod)', async () => {
+  const w = await loadWizard();
+  assert.equal(typeof w.generatePowerShell, 'undefined');
+});
