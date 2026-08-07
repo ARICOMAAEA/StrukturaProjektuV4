@@ -272,6 +272,7 @@ const steps = [
   { id: 'data', label: '06 Data', icon: '6' },
   { id: 'resource', label: '07 Resource', icon: '7' },
   { id: 'delivery', label: 'Delivery', icon: 'D' },
+  { id: 'topology', label: 'Topologie & Git', icon: 'G' },
   { id: 'output', label: 'Vystup', icon: '!' },
 ];
 
@@ -752,6 +753,56 @@ function renderStep8() {
     checkboxField('START_HERE.md', g.startHere, "state.delivery.governance.startHere=this.checked;saveState();updatePreview();", '— 5min onboarding') +
     checkboxField('DIAGRAMS_INDEX.md', g.diagramsIndex, "state.delivery.governance.diagramsIndex=this.checked;saveState();updatePreview();", '— centralni inventar HTML/SVG diagramu')
   );
+
+  return html;
+}
+
+const ASSETS_ROOT_PRESETS = [
+  { value: 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\Zakaznici',
+    label: '9999Claude\\Zakaznici (Alika, ARICOMA, HEINEKEN, LINET, Promet, QUICK, Schwan)' },
+  { value: 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\SAP Service - Projekty\\Zakaznici',
+    label: '9999Claude\\SAP Service - Projekty\\Zakaznici (KOFOLA a dalsi SAP Service)' },
+  { value: 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\Interni',
+    label: '9999Claude\\Interni (interni projekty)' },
+];
+
+function renderStepTopology() {
+  const m = state.metadata;
+  let html = sectionHeader('Topologie & Git',
+    'Tri fyzicka mista projektu a nastaveni GitHub repozitare. Cesta k binarnimu mirroru se NEDOPOCITAVA — musi byt zadana explicitne.');
+
+  const presetButtons = ASSETS_ROOT_PRESETS.map((p) => `
+    <button onclick="state.metadata.assetsBase='${escAttr(p.value)}';saveState();render();"
+      class="w-full text-left px-3 py-2 text-xs border rounded-md mb-1.5 transition-colors ${m.assetsBase === p.value ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-zinc-200 hover:bg-zinc-50'}">
+      ${escHtml(p.label)}
+    </button>`).join('');
+
+  html += card(
+    `<label class="block text-sm font-medium text-zinc-700 mb-2">Koren binarniho mirroru (assets)<span class="text-red-500 ml-0.5">*</span></label>
+     <p class="text-xs text-zinc-500 mb-2">Na OneDrive existuji dva ruzne zakaznicke rooty. Vyber ten spravny — dopocitat se neda.</p>
+     ${presetButtons}` +
+    inputField('…nebo vlastni cesta', m.assetsBase,
+      "state.metadata.assetsBase=this.value;saveState();updatePreview();",
+      { placeholder: 'C:\\Users\\licka\\ARICOMA\\<Teams kanal> - General', helpText: 'Bez zakaznika a bez PROJECT_ID — ty se doplni automaticky.' })
+  );
+
+  html += card(
+    inputField('GitHub organizace', m.githubOrg, "state.metadata.githubOrg=this.value;saveState();updatePreview();", { placeholder: 'ARICOMAAEA' }) +
+    inputField('Nazev repozitare', m.repoName, "state.metadata.repoName=this.value;saveState();updatePreview();", { placeholder: getRepoName(), helpText: 'Prazdne = odvodi se automaticky (viz nahled nize).' }) +
+    `<label class="flex items-center gap-2 mb-4 cursor-pointer">
+       <input type="checkbox" ${m.repoPrivate ? 'checked' : ''} onchange="state.metadata.repoPrivate=this.checked;saveState();updatePreview();" class="rounded text-primary-600 focus:ring-primary-500">
+       <span class="text-sm text-zinc-700">Private repozitar</span>
+     </label>` +
+    inputField('Jmeno pro branch ruleset', m.branchOwner, "state.metadata.branchOwner=this.value;saveState();updatePreview();", { placeholder: 'vojta', helpText: 'Vetve pak musi mit tvar <jmeno>/<co-dela>, napr. vojta/br-115-analyza.', required: true })
+  );
+
+  const assets = getAssetsRoot();
+  html += `<div class="bg-zinc-50 border border-zinc-200 rounded-lg p-4 text-xs font-mono">
+    <div class="mb-2"><span class="text-zinc-500">PROJECT:</span> <span class="text-zinc-700">${escHtml(getProjectRoot())}</span></div>
+    <div class="mb-2"><span class="text-zinc-500">EXECUTION:</span> <span class="text-zinc-700">${escHtml(getExecutionRoot())}</span></div>
+    <div class="mb-2"><span class="text-zinc-500">ASSETS:</span> ${assets ? `<span class="text-zinc-700">${escHtml(assets)}</span>` : '<span class="text-red-600">NEZADANO — povinne</span>'}</div>
+    <div><span class="text-zinc-500">GITHUB:</span> <span class="text-zinc-700">${escHtml(m.githubOrg || 'ARICOMAAEA')}/${escHtml(getRepoName())}</span> <span class="text-zinc-400">${m.repoPrivate ? '(private)' : '(public)'}</span></div>
+  </div>`;
 
   return html;
 }
@@ -1975,7 +2026,7 @@ function render() {
   el('progressLabel').textContent = pct + '%';
 
   // Content
-  const renderers = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6, renderStep7, renderStep8, renderStep9];
+  const renderers = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6, renderStep7, renderStep8, renderStepTopology, renderStep9];
   const content = el('stepContent');
   content.innerHTML = renderers[step]();
   content.className = 'fade-in';
@@ -1987,7 +2038,7 @@ function render() {
   el('btnNext').style.visibility = step === steps.length - 1 ? 'hidden' : 'visible';
 
   // Output tabs
-  if (step === 9) {
+  if (step === steps.length - 1) {
     setTimeout(() => setOutputTab(activeOutputTab), 0);
   }
 
@@ -2342,7 +2393,7 @@ function parseTemplateMarkdown(text) {
 
   saveState();
   // Jump to output step
-  state.currentStep = 9;
+  state.currentStep = steps.length - 1;
   render();
   showToast('Template importovan! Zkontroluj data a generuj vystup.');
 }

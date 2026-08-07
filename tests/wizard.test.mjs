@@ -177,3 +177,29 @@ test('generatePowerShell je odstranen (mrtvy kod)', async () => {
   const w = await loadWizard();
   assert.equal(typeof w.generatePowerShell, 'undefined');
 });
+
+test('steps obsahuji krok topology pred vystupem', async () => {
+  const w = await loadWizard();
+  // Array.from (not .map) here: w.steps lives in the vm sandbox realm, so .map()
+  // would build the result via that realm's Array constructor and fail
+  // deepStrictEqual's prototype check against a main-realm literal array.
+  const ids = Array.from(w.steps, (s) => s.id);
+  assert.deepEqual(ids.slice(-2), ['topology', 'output']);
+  assert.equal(w.steps.length, 11);
+});
+
+test('render nespadne na zadnem kroku', async () => {
+  const w = await loadWizard();
+  for (let i = 0; i < w.steps.length; i++) {
+    w.state.currentStep = i;
+    assert.doesNotThrow(() => w.render(), `krok ${i} (${w.steps[i].id}) spadl`);
+  }
+});
+
+test('renderStepTopology nabizi oba zname OneDrive rooty', async () => {
+  const w = await loadWizard();
+  const html = w.renderStepTopology();
+  assert.ok(html.includes('SAP Service - Projekty'), 'chybi SAP Service root');
+  assert.ok(html.includes('9999Claude'), 'chybi 9999Claude root');
+  assert.ok(html.includes('ARICOMAAEA'), 'chybi default org');
+});
