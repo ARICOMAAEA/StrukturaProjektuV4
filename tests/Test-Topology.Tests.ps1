@@ -1,4 +1,4 @@
-$here   = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here   = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script = Join-Path $here '..\assets\scripts\Test-Topology.ps1'
 
 Describe 'Test-Topology.ps1' {
