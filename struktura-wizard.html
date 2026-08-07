@@ -1121,12 +1121,21 @@ function generateClaudePrompt() {
   const m = state.metadata;
   const b = state.business;
   const pid = getProjectId();
-  const kRoot = getProjectRoot();
+  const pRoot = getProjectRoot();
   const eRoot = getExecutionRoot();
+  const aRoot = getAssetsRoot();
+  const repoFull = `${m.githubOrg || 'ARICOMAAEA'}/${getRepoName()}`;
   const today = m.date || new Date().toISOString().slice(0, 10);
   const del = getActiveDelivery();
 
-  let prompt = `Vytvor kompletni projektovou strukturu Meta Framework V3 pro projekt "${m.fullName || pid}".
+  // Bez explicitniho assetsRoot je prompt nepouzitelny (junction _assets by mirilo nikam)
+  // a nesmi se tvarit jako hotovy. Viz spec par. 4.2 — cesta se nedopocitava.
+  const guard = getAssetsRoot()
+    ? ''
+    : '!! NEDOKONCENY VSTUP — ve wizardu neni vyplnen koren binarniho mirroru (krok "Topologie & Git").\n' +
+      '!! NESPOUSTEJ tento prompt. Vrat se do wizardu, vyber koren a zkopiruj prompt znovu.\n\n';
+
+  let prompt = `${guard}Zaloz novy projekt "${m.fullName || pid}" v topologii V4 (Meta Framework).
 
 ## Metadata
 - PROJECT_ID: ${pid}
@@ -1134,10 +1143,13 @@ function generateClaudePrompt() {
 - DATE: ${today}
 - PROJECT_TYPE: ${m.projectType}${m.projectType === 'ZAK' ? `\n- CUSTOMER: ${m.customer}` : ''}
 - INITIAL_MODE: ${m.mode}
-- KNOWLEDGE_ROOT: ${kRoot}
+- PROJECT_ROOT:   ${pRoot}
 - EXECUTION_ROOT: ${eRoot}
+- ASSETS_ROOT:    ${aRoot}
+- GITHUB_REPO:    ${repoFull}${m.repoPrivate ? ' (private)' : ' (public)'}
+- BRANCH_OWNER:   ${m.branchOwner}
 
-## Knowledge Layer: ${kRoot}
+## Projektova vrstva: ${pRoot}
 
 ### Adresarova struktura
 Vytvor nasledujici slozky:
@@ -1248,7 +1260,7 @@ ${state.delivery.preset !== 'Minimal' ? `| \`ID_REGISTRY.md\` | Lookup table pro
 | \`00_PROJECT_CONTROL/05_PLAN/\` | KDY (When) | \`PLAN.md\` |
 | \`00_PROJECT_CONTROL/06_DATA/\` | Fakta | \`DATA.md\` |
 | \`00_PROJECT_CONTROL/07_RESOURCE/\` | Vstupy | \`RESOURCE.md\` |
-| \`00_PROJECT_CONTROL/08_DEV/\` | Bridge | \`ExecutionLayer.lnk\` |
+| \`00_PROJECT_CONTROL/08_DEV/\` | Manifest dev repozitaru | \`repos.json\` + generovany \`REPOS.md\` |
 \`\`\`
 
 #### ContextQuick.md (root)
@@ -1271,7 +1283,7 @@ ${state.delivery.preset !== 'Minimal' ? `| \`ID_REGISTRY.md\` | Lookup table pro
       05_PLAN/             KDY (WHEN) — faze, milniky
       06_DATA/             Fakta — vystupy analyz
       07_RESOURCE/         Vstupy — manualy, prompty, vazby
-      08_DEV/              Most na execution layer (ExecutionLayer.lnk)
+      08_DEV/              Manifest dev repozitaru (repos.json + REPOS.md)
 
     10_DELIVERY/                                 [realizace a dodavka]
       11_MEETINGS/         zapisy z jednani (YYYY-MM-DD_nazev)
@@ -1681,7 +1693,7 @@ status: active
 <pravidlo zmeny>
 \`\`\`
 
-Vyznam vrstev pro obsah README: 01_BUSINESS = PROC (Why); 02_KNOWLEDGE = CO (What); 03_ARCHITECTURE = JAK (How), ADR append-only; 04_ENGINEERING = CIM (With what); 05_PLAN = KDY (When); 06_DATA = Fakta (fakt vs. interpretace); 07_RESOURCE = externi vstupy (nejsou zavazna pravidla); 08_DEV = most do execution layer (zadny spustitelny kod). 10_DELIVERY = operativni dorucovaci vrstva (caste zmeny). 20_SHARED_REFERENCE = sablony / standardy / naming konvence.
+Vyznam vrstev pro obsah README: 01_BUSINESS = PROC (Why); 02_KNOWLEDGE = CO (What); 03_ARCHITECTURE = JAK (How), ADR append-only; 04_ENGINEERING = CIM (With what); 05_PLAN = KDY (When); 06_DATA = Fakta (fakt vs. interpretace); 07_RESOURCE = externi vstupy (nejsou zavazna pravidla); 08_DEV = manifest dev repozitaru (repos.json je jedina pravda, REPOS.md je generovany). 10_DELIVERY = operativni dorucovaci vrstva (caste zmeny). 20_SHARED_REFERENCE = sablony / standardy / naming konvence.
 
 ## Execution Layer: ${eRoot}
 
@@ -1692,11 +1704,8 @@ Vyznam vrstev pro obsah README: 01_BUSINESS = PROC (Why); 02_KNOWLEDGE = CO (Wha
 ### CONTEXT junction
 Spust v PowerShell:
 \`\`\`powershell
-New-Item -ItemType Junction -Path "${eRoot}\\CONTEXT" -Target "${kRoot}"
+New-Item -ItemType Junction -Path "${eRoot}\\CONTEXT" -Target "${pRoot}"
 \`\`\`
-
-### 08_DEV shortcut
-Vytvor zastupce \`${kRoot}\\00_PROJECT_CONTROL\\08_DEV\\ExecutionLayer.lnk\` ukazujici na \`${eRoot}\`.
 `;
 
   return prompt;

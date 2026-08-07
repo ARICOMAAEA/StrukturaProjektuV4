@@ -204,6 +204,40 @@ test('renderStepTopology nabizi oba zname OneDrive rooty', async () => {
   assert.ok(html.includes('ARICOMAAEA'), 'chybi default org');
 });
 
+/** Bezne naplnena metadata pro testy promptu. */
+function fullMetadata(w) {
+  return setMetadata(w, {
+    date: '2026-08-07', shortName: 'Test', fullName: 'Testovaci projekt',
+    projectType: 'ZAK', customer: 'KOFOLA',
+    assetsBase: 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\SAP Service - Projekty\\Zakaznici',
+    githubOrg: 'ARICOMAAEA', branchOwner: 'vojta',
+  });
+}
+
+test('prompt uvadi vsechny tri koreny a GitHub repo', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  assert.ok(p.includes('C:\\PROJECT\\ZAKAZNICI\\KOFOLA\\20260807_Test'), 'chybi PROJECT_ROOT');
+  assert.ok(p.includes('C:\\DEV\\Claude\\Zakaznici\\KOFOLA\\20260807_Test'), 'chybi EXECUTION_ROOT');
+  assert.ok(p.includes('SAP Service - Projekty\\Zakaznici\\KOFOLA\\20260807_Test'), 'chybi ASSETS_ROOT');
+  assert.ok(p.includes('ARICOMAAEA/KOFOLA_20260807_Test'), 'chybi GITHUB_REPO');
+});
+
+test('prompt uz nezminuje ExecutionLayer.lnk', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  assert.ok(!w.generateClaudePrompt().includes('ExecutionLayer.lnk'));
+});
+
+test('prompt varuje, kdyz assetsRoot neni vyplnen', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  setMetadata(w, { assetsBase: '' });
+  const p = w.generateClaudePrompt();
+  assert.ok(p.startsWith('!! NEDOKONCENY VSTUP'), 'prompt bez assetsRoot musi zacinat varovanim');
+});
+
 /** Zplosti strom na seznam jmen (rekurzivne). */
 function flatten(node, acc = []) {
   acc.push(node.name);
