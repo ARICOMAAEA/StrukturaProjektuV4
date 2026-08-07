@@ -939,8 +939,13 @@ Zkopiruj sablony ze slozky nastroje **${toolRoot}\\assets\\** do ${pRoot}:
 | \`assets\\git\\gitignore\` | \`.gitignore\` (POZOR: pridat tecku) |
 | \`assets\\git\\gitattributes\` | \`.gitattributes\` (POZOR: pridat tecku) |
 
-Skripty kopiruj **beze zmeny** — jsou plne manifest-driven. V \`.github\\CODEOWNERS\`
-a \`.github\\CONTRIBUTING.md\` nahrad zastupny symbol \`{{BRANCH_OWNER}}\` hodnotou \`${m.branchOwner}\`.
+Skripty kopiruj **beze zmeny** — jsou plne manifest-driven. Sablony maji DVA zastupne symboly,
+protoze jde o dve RUZNE identity:
+- \`{{BRANCH_OWNER}}\` (v \`.github\\CONTRIBUTING.md\`) = krestni jmeno pro nazvy vetvi -> dosad \`${m.branchOwner}\`.
+- \`@{{GITHUB_OWNER}}\` (v \`.github\\CODEOWNERS\`) = GitHub username uctu. Wizard ho nezna —
+  ZEPTEJ SE UZIVATELE. Neni to totez jako jmeno pro vetve; musi to byt skutecny ucet s aspon
+  \`write\` pristupem v cilove organizaci, jinak GitHub radek tise ignoruje. Kdyz ho uzivatel
+  nezna, ponech zastupny symbol a nahlas to — nehadej.
 Dale vytvor \`_local\\.gitkeep\` (prazdny) a \`CHANGELOG.md\` se zaznamem verze \`1.0.0\` dle Keep a Changelog.
 
 Teprve ted, kdyz \`Generate-ReposMd.ps1\` uz existuje na disku, vygeneruj \`REPOS.md\`:

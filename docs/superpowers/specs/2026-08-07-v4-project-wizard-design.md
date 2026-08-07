@@ -64,7 +64,9 @@ K dnešním krokům přibývá krok **„Topologie & Git"**:
 | `githubOrg` | text | `ARICOMAAEA` | |
 | `repoName` | text | `<CUSTOMER>_<PROJEKT>` | předvyplněno, editovatelné |
 | `repoPrivate` | checkbox | ✔ | |
-| `branchOwner` | text | — | jméno do vzoru rulesetu `<jmeno>/<co-dela>` |
+| `branchOwner` | text | — | **křestní jméno** do vzoru rulesetu `<jmeno>/<co-dela>`, např. `vojta` |
+
+> **Pozor — `branchOwner` NENÍ GitHub username.** Jsou to dvě různé identity: `vojta` (název větve) vs. `@VojtechLickaAEA` (účet). `.github/CODEOWNERS` potřebuje to druhé, jinak GitHub řádek tiše ignoruje. Wizard GitHub handle nezná, proto v šablonách existují **dva** zástupné symboly — `{{BRANCH_OWNER}}` (dosadí wizard) a `@{{GITHUB_OWNER}}` (na ten se prompt ve FÁZI 3 zeptá uživatele). Zjištěno při review Tasku 9.
 
 ### 4.1 Segment určuje tvar cesty, ne jen její začátek
 
