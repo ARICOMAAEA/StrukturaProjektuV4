@@ -282,8 +282,11 @@ test('branch protection prijde az PO prvnim pushi', async () => {
   const w = await loadWizard();
   fullMetadata(w);
   const p = w.generateClaudePrompt();
-  assert.ok(p.indexOf('gh repo create') < p.indexOf('branch protection'),
-    'protection se nesmi zapinat pred prvnim pushem — na prazdny main by push neprosel');
+  const create = p.indexOf('gh repo create');
+  const protect = p.toLowerCase().indexOf('branch protection');
+  assert.ok(create > -1, 'prompt musi obsahovat gh repo create');
+  assert.ok(protect > -1, 'prompt musi obsahovat branch protection');
+  assert.ok(create < protect, 'protection se nesmi zapinat pred prvnim pushem');
 });
 
 test('obe GitHub faze maji potvrzovaci branu', async () => {
