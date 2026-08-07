@@ -127,6 +127,44 @@ INITIAL_MODE:    C
   assert.equal(w.getAssetsRoot(), fullAssetsPath);
 });
 
+test('parseTemplateMarkdown: ASSETS_ROOT (INT, bez zakaznika) se rozparsuje a getAssetsRoot() vrati puvodni cestu', async () => {
+  const w = await loadWizard();
+  const fullAssetsPath = 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\Interni\\20260807_Test';
+  const tpl = `PROJECT_ID:      20260807_Test
+PROJECT_NAME:    Test
+DATE:            2026-08-07
+PROJECT_TYPE:    INT
+CUSTOMER:
+PROJECT_ROOT:    C:\\PROJECT\\INTERNI\\20260807_Test
+EXECUTION_ROOT:  C:\\DEV\\Claude\\Interni\\20260807_Test
+ASSETS_ROOT:     ${fullAssetsPath}
+INITIAL_MODE:    C
+`;
+  w.parseTemplateMarkdown(tpl);
+  assert.equal(
+    w.state.metadata.assetsBase,
+    'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\Interni'
+  );
+  assert.equal(w.getAssetsRoot(), fullAssetsPath);
+});
+
+test('parseTemplateMarkdown: ASSETS_ROOT bez ocekavaneho suffixu NEuhodne base — vynuluje assetsBase', async () => {
+  const w = await loadWizard();
+  setMetadata(w, { assetsBase: 'WRONG_ASSETS_BASE_MUSI_BYT_VYNULOVANA' });
+  const tpl = `PROJECT_ID:      20260807_Test
+PROJECT_NAME:    Test
+DATE:            2026-08-07
+PROJECT_TYPE:    ZAK
+CUSTOMER:        KOFOLA
+PROJECT_ROOT:    C:\\PROJECT\\ZAKAZNICI\\KOFOLA\\20260807_Test
+EXECUTION_ROOT:  C:\\DEV\\Claude\\Zakaznici\\KOFOLA\\20260807_Test
+ASSETS_ROOT:     C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\SAP Service - Projekty\\Zakaznici\\OTHER\\20260807_Test
+INITIAL_MODE:    C
+`;
+  w.parseTemplateMarkdown(tpl);
+  assert.equal(w.state.metadata.assetsBase, '');
+});
+
 test('buildTree vraci strom s korenem = PROJECT_ID', async () => {
   const w = await loadWizard();
   setMetadata(w, { date: '2026-08-07', shortName: 'Test' });
