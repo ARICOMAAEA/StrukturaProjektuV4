@@ -949,7 +949,8 @@ function buildTree() {
   ];
   pc.children.push({ name: '07_RESOURCE', type: 'dir', children: resChildren });
   pc.children.push({ name: '08_DEV', type: 'dir', children: [
-    { name: 'ExecutionLayer.lnk', type: 'file' },
+    { name: 'repos.json', type: 'file' },
+    { name: 'REPOS.md', type: 'file' },
     { name: 'README.md', type: 'file' },
   ]});
   pc.children.push({ name: 'README.md', type: 'file' });
@@ -1040,8 +1041,27 @@ function buildTree() {
   // 99_ARCHIVE
   tree.children.push({ name: '99_ARCHIVE', type: 'dir', children: [] });
 
+  // V4 — git a nadstavba projektove vrstvy
+  tree.children.push({ name: '.github', type: 'dir', children: [
+    { name: 'CODEOWNERS', type: 'file' },
+    { name: 'CONTRIBUTING.md', type: 'file' },
+    { name: 'PULL_REQUEST_TEMPLATE.md', type: 'file' },
+  ]});
+  tree.children.push({ name: 'scripts', type: 'dir', children: [
+    { name: 'bootstrap.ps1', type: 'file' },
+    { name: 'check-drift.ps1', type: 'file' },
+    { name: 'Generate-ReposMd.ps1', type: 'file' },
+    { name: 'Test-Topology.ps1', type: 'file' },
+  ]});
+  tree.children.push({ name: '_dev', type: 'dir', children: [] });
+  tree.children.push({ name: '_assets', type: 'dir', children: [] });
+  tree.children.push({ name: '_local', type: 'dir', children: [] });
+
   // Root files
   tree.children.push({ name: 'README.md', type: 'file' });
+  tree.children.push({ name: '.gitignore', type: 'file' });
+  tree.children.push({ name: '.gitattributes', type: 'file' });
+  tree.children.push({ name: 'CHANGELOG.md', type: 'file' });
   tree.children.push({ name: 'ContextQuick.md', type: 'file' });
   tree.children.push({ name: 'CLAUDE.md', type: 'file' });
   tree.children.push({ name: 'PROJECT_STATUS.md', type: 'file' });

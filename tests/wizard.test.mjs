@@ -203,3 +203,29 @@ test('renderStepTopology nabizi oba zname OneDrive rooty', async () => {
   assert.ok(html.includes('9999Claude'), 'chybi 9999Claude root');
   assert.ok(html.includes('ARICOMAAEA'), 'chybi default org');
 });
+
+/** Zplosti strom na seznam jmen (rekurzivne). */
+function flatten(node, acc = []) {
+  acc.push(node.name);
+  (node.children || []).forEach((c) => flatten(c, acc));
+  return acc;
+}
+
+test('08_DEV ma repos.json a REPOS.md, ne ExecutionLayer.lnk', async () => {
+  const w = await loadWizard();
+  const names = flatten(w.buildTree());
+  assert.ok(names.includes('repos.json'));
+  assert.ok(names.includes('REPOS.md'));
+  assert.ok(!names.includes('ExecutionLayer.lnk'), 'ExecutionLayer.lnk uz do V4 nepatri');
+});
+
+test('strom obsahuje V4 nadstavbu', async () => {
+  const w = await loadWizard();
+  const names = flatten(w.buildTree());
+  for (const expected of ['_dev', '_assets', '_local', '.github', 'scripts',
+                          '.gitignore', '.gitattributes', 'CHANGELOG.md',
+                          'bootstrap.ps1', 'check-drift.ps1', 'Generate-ReposMd.ps1', 'Test-Topology.ps1',
+                          'CODEOWNERS', 'CONTRIBUTING.md', 'PULL_REQUEST_TEMPLATE.md']) {
+    assert.ok(names.includes(expected), `ve stromu chybi ${expected}`);
+  }
+});
