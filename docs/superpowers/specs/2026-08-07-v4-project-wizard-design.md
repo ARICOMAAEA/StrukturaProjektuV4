@@ -29,7 +29,7 @@ Dnešní stav nástroje: `00_TOOLS\StrukturaProjektuV3\struktura-wizard.html` (2
 | W3 | Rozsah je **jen greenfield** | Každý brownfield projekt má vlastní nekonzistence (dva OneDrive rooty, cizí org, ssh remotes); KOFOLA vyžadovala 10 tasků a dvě kola oprav — automatizace by byla křehká |
 | W4 | GitHub kroky se provádějí, ale **s potvrzením před každým** | `gh repo create` v ARICOMAAEA je navenek působící a nevratný krok; překlep v názvu založí zavěječnou repo v organizaci |
 | W5 | `meta-framework-init` se **deprecuje** | Dvě cesty ke stejné struktuře se garantovaně rozejdou |
-| W6 | `generatePowerShell()` se **ruší** | ~930 řádků (třetina souboru) duplikujících prompt; neumí interaktivní potvrzení GitHub kroků (W4) — držet je v souladu je hlavní riziko rozpadu |
+| W6 | `generatePowerShell()` se **ruší** | Při plánování zjištěno, že je to **už dnes mrtvý kód** — `renderOutputPanel()` (ř. 760) má jen dvě záložky (Strom, Claude Code Prompt) a funkci nikdo nevolá. Jde tedy o smazání 616 řádků (ř. 1606–2221) s nulovým dopadem na chování, ne o odebrání funkce. README nástroje ji dnes chybně inzeruje jako třetí výstup. |
 | W7 | Složka se přejmenuje na `StrukturaProjektuV4` | Název má odpovídat tomu, co nástroj generuje |
 
 ## 3. Architektura zásahu
@@ -45,7 +45,9 @@ Wizard je vnitřně dobře strukturovaný — zásah je **lokalizovaný, ne pře
 | ř. 260 `const steps = [...]` | nový krok „Topologie & Git" |
 | ř. 808 `buildTree()` | strom doplnit o V4 nadstavbu (`_dev`, `_assets`, `_local`, `.github`, `scripts`, `repos.json`) |
 | ř. 1021 `generateClaudePrompt()` | přepsat na 8 fází (§5) |
-| ř. 1606–2540 `generatePowerShell()` | **smazat** (W6) |
+| ř. 1606–2221 `generatePowerShell()` | **smazat** — mrtvý kód, nikdo ji nevolá (W6) |
+| ř. 260 `steps`, ř. 2565 `renderers`, ř. 2577 `step === 9`, ř. 2908 `currentStep = 9` | jediná tři místa vázaná na index výstupního kroku; při vložení nového kroku nahradit `steps.length - 1` |
+| ř. 143 `projectType: 'INT' \| 'ZAK'` | **existuje a je správné** — asymetrii cest (§4.1) už dnešní `getKnowledgeRoot()` řeší; nové pole `segment` se nezavádí, jen se přejmenuje casing segmentu pro `C:\PROJECT` |
 | ř. 1897 `08_DEV` folder-README text | `ExecutionLayer.lnk` → `repos.json` + `REPOS.md`, zmínku „knowledge layer (OneDrive)" opravit |
 
 Zbývající dva výstupy — **Claude Code prompt** a **tree preview** — se musí držet v souladu. To je dva generátory místo tří.
@@ -56,8 +58,8 @@ K dnešním krokům přibývá krok **„Topologie & Git"**:
 
 | Pole | Typ | Default | Poznámka |
 |---|---|---|---|
-| `segment` | `ZAKAZNICI` \| `INTERNI` | `ZAKAZNICI` | řídí obě cesty naráz i **tvar** cesty — viz §4.1 |
-| `projectBase` | text | `C:\PROJECT` | kořen bez segmentu |
+| `projectType` | `INT` \| `ZAK` | `INT` | **už existuje** (ř. 143), nezavádí se znovu; řídí obě cesty i jejich **tvar** — viz §4.1 |
+| `projectBase` | text | `C:\PROJECT` | kořen bez segmentu; nahrazuje dnešní `knowledgeBase` |
 | `assetsRoot` | dropdown + volný text | — (povinné) | **explicitní**, viz níže |
 | `githubOrg` | text | `ARICOMAAEA` | |
 | `repoName` | text | `<CUSTOMER>_<PROJEKT>` | předvyplněno, editovatelné |
@@ -73,7 +75,7 @@ C:\DEV\Claude\Zakaznici\KOFOLA\20260308_CasovaOkna     ← <SEGMENT>\<CUSTOMER>\
 C:\DEV\Claude\Interni\20260713_Pivovar                 ← <SEGMENT>\<PROJEKT>
 ```
 
-Wizard to musí respektovat, jinak založí interní projekt o úroveň hlouběji, než kam míří všechny ostatní:
+Dnešní `getKnowledgeRoot()` / `getExecutionRoot()` (ř. 303–321) tuto asymetrii **už řeší správně** přes `projectType`. Požadavek proto zní: při přepnutí na `C:\PROJECT` ji nerozbít. Cílový tvar:
 
 | segment | project layer | execution layer | repo name |
 |---|---|---|---|
@@ -138,6 +140,23 @@ Přebírá se beze změny z KOFOLA (spec V4 §6.1):
 | `check-drift.ps1` | **verbatim** | totéž |
 | `Generate-ReposMd.ps1` | **verbatim** | totéž; už obsahuje stabilní tiebreaker řazení |
 | `Test-Topology.ps1` | **nový** | viz §7 |
+
+### 6.1 Odkud prompt bere obsah skriptů a šablon
+
+Skripty mají dohromady ~570 řádků, `.github` šablony dalších ~150. Vložit je doslovně do promptu by ho zdvojnásobilo a při každé opravě skriptu by se musel editovat 2900řádkový HTML.
+
+**Zvolené řešení:** skripty a šablony leží v repu nástroje jako **reálné soubory** v `assets/`:
+
+```
+StrukturaProjektuV4\assets\
+├── scripts\{bootstrap,check-drift,Generate-ReposMd,Test-Topology}.ps1
+├── github\{CODEOWNERS,CONTRIBUTING.md,PULL_REQUEST_TEMPLATE.md}
+└── git\{gitignore,gitattributes}          # bez tečky, aby je git nástroje neignoroval
+```
+
+Prompt jen **odkáže na absolutní cestu** k této složce a řekne Claude Code, ať soubory zkopíruje a doplní projektové hodnoty. Wizard si vlastní umístění odvodí z `location.pathname` (běží přes `file://`); pokud se to nepodaří, použije se hardcoded default a wizard to viditelně oznámí.
+
+Přínos: jediná pravda pro obsah skriptů, oprava gotchy je edit `.ps1` souboru, ne HTML. Cena: prompt není plně self-contained — vyžaduje dostupný repo nástroje. To je přijatelné, protože wizard se stejně spouští z disku.
 
 `Test-Migration.ps1` z KOFOLA se **nekopíruje**. Je to jednorázová migrační brána s hardcoded očekáváními (`md=364`, `html=24`, konkrétní KOFOLA soubory, 361 `MD_V_MIRRORU`) — pro nový projekt nedává smysl.
 
