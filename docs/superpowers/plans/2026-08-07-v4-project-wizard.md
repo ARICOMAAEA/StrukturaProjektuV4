@@ -1241,7 +1241,9 @@ Describe 'Test-Topology.ps1' {
     $assDir = Join-Path $root 'assetsrc'
     $proj   = Join-Path $root 'project'
 
-    New-Item -ItemType Directory -Force -Path $devDir, $assDir, (Join-Path $proj 'scripts'),
+    # Podslozka apps v devRoot je POVINNA: FAZE 1 promptu ji v kazdem projektu zaklada a pinnuty
+    # check-drift.ps1 jeho absenci hlasi jako CHYBI_APPS -> kontrola 9 by selhala.
+    New-Item -ItemType Directory -Force -Path $devDir, (Join-Path $devDir 'apps'), $assDir, (Join-Path $proj 'scripts'),
         (Join-Path $proj '00_PROJECT_CONTROL\08_DEV') | Out-Null
 
     Copy-Item $script (Join-Path $proj 'scripts\Test-Topology.ps1')
@@ -1377,8 +1379,11 @@ if (-not (Test-Path -LiteralPath $ManifestPath)) {
 } else {
     try {
         $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
-        $missing = @('project', 'devRoot', 'assetsRoot', 'repos') |
-            Where-Object { -not $manifest.PSObject.Properties[$_] }
+        # POZOR: Where-Object bez shody vraci $null, ne prazdne pole. Pod
+        # Set-StrictMode -Version Latest pak .Count spadne — a to na KAZDEM
+        # platnem manifestu, tedy na happy path. Obalka @(...) je povinna.
+        $missing = @(@('project', 'devRoot', 'assetsRoot', 'repos') |
+            Where-Object { -not $manifest.PSObject.Properties[$_] })
         Add-Check 'Manifest repos.json' ($missing.Count -eq 0) $(
             if ($missing) { "chybi pole: $($missing -join ', ')" } else { "projekt=$($manifest.project), repos=$(@($manifest.repos).Count)" })
     } catch {
@@ -1417,7 +1422,12 @@ Add-Check 'Junction CONTEXT' ($ctxLink -eq $repoRoot.TrimEnd('\')) $(
 # --- 6) Zadna trackovana binarka ---
 Push-Location $repoRoot
 try {
-    $tracked = @(& git ls-files 2>$null)
+    # catch je POVINNY: v PS 5.1 vyhodi nativni prikaz pisici na stderr terminating
+    # NativeCommandError pod $ErrorActionPreference='Stop', i kdyz je stderr v $null.
+    # Bez nej skript v ne-git adresari spadne stack tracem misto ciste FAIL tabulky.
+    # Vnejsi @(...) je take povinne — @() jako jediny vystup catch bloku by se pri
+    # prirazeni sbalilo na $null a .Count by spadl i na happy path.
+    $tracked = @(try { @(& git ls-files 2>$null) } catch { @() })
     $bin = @($tracked | Where-Object { $_ -match '\.(mp4|xlsx|vsdx|pdf|png|jpg|jpeg|pptx|lnk)$' })
 } finally { Pop-Location }
 Add-Check 'Zadna binarka v gitu' ($bin.Count -eq 0) $(
@@ -1438,9 +1448,11 @@ if (-not (Test-Path -LiteralPath $giPath)) {
 # --- 8) Git repo, commit, remote ---
 Push-Location $repoRoot
 try {
-    $isRepo    = (& git rev-parse --is-inside-work-tree 2>$null) -eq 'true'
-    $commits   = if ($isRepo) { @(& git rev-list --count HEAD 2>$null)[0] } else { '0' }
-    $originUrl = if ($isRepo) { (& git remote get-url origin 2>$null) } else { $null }
+    # Kazde volani git ma vlastni catch — viz poznamka u kontroly 6.
+    # `git rev-list --count HEAD` selze i na fresh `git init` bez commitu.
+    $isRepo    = try { (& git rev-parse --is-inside-work-tree 2>$null) -eq 'true' } catch { $false }
+    $commits   = if ($isRepo) { try { @(& git rev-list --count HEAD 2>$null)[0] } catch { '0' } } else { '0' }
+    $originUrl = if ($isRepo) { try { (& git remote get-url origin 2>$null) } catch { $null } } else { $null }
 } finally { Pop-Location }
 
 if (-not $ExpectedRemote) {
