@@ -11,6 +11,7 @@ const REQUIRED = [
   'assets/scripts/bootstrap.ps1',
   'assets/scripts/check-drift.ps1',
   'assets/scripts/Generate-ReposMd.ps1',
+  'assets/scripts/Test-Topology.ps1',
   'assets/github/CODEOWNERS',
   'assets/github/CONTRIBUTING.md',
   'assets/github/PULL_REQUEST_TEMPLATE.md',
