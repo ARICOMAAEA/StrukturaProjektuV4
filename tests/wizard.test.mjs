@@ -55,6 +55,78 @@ test('getRepoName: ZAK ma prefix zakaznika, INT nema', async () => {
   assert.equal(w.getRepoName(), '20260807_Test');
 });
 
+test('parseTemplateMarkdown: PROJECT_ROOT (INT) se rozparsuje bez zdvojeni cesty', async () => {
+  const w = await loadWizard();
+  setMetadata(w, { projectBase: 'WRONG_BASE_MUSI_BYT_PREPSANA' });
+  const tpl = `PROJECT_ID:      20260807_Test
+PROJECT_NAME:    Test
+DATE:            2026-08-07
+PROJECT_TYPE:    INT
+CUSTOMER:
+PROJECT_ROOT:    C:\\PROJECT\\INTERNI\\20260807_Test
+EXECUTION_ROOT:  C:\\DEV\\Claude\\Interni\\20260807_Test
+INITIAL_MODE:    C
+`;
+  w.parseTemplateMarkdown(tpl);
+  assert.equal(w.state.metadata.projectBase, 'C:\\PROJECT');
+  assert.equal(w.getProjectRoot(), 'C:\\PROJECT\\INTERNI\\20260807_Test');
+});
+
+test('parseTemplateMarkdown: PROJECT_ROOT (ZAK) se rozparsuje bez zdvojeni cesty', async () => {
+  const w = await loadWizard();
+  setMetadata(w, { projectBase: 'WRONG_BASE_MUSI_BYT_PREPSANA' });
+  const tpl = `PROJECT_ID:      20260807_Test
+PROJECT_NAME:    Test
+DATE:            2026-08-07
+PROJECT_TYPE:    ZAK
+CUSTOMER:        KOFOLA
+PROJECT_ROOT:    C:\\PROJECT\\ZAKAZNICI\\KOFOLA\\20260807_Test
+EXECUTION_ROOT:  C:\\DEV\\Claude\\Zakaznici\\KOFOLA\\20260807_Test
+INITIAL_MODE:    C
+`;
+  w.parseTemplateMarkdown(tpl);
+  assert.equal(w.state.metadata.projectBase, 'C:\\PROJECT');
+  assert.equal(w.getProjectRoot(), 'C:\\PROJECT\\ZAKAZNICI\\KOFOLA\\20260807_Test');
+});
+
+test('parseTemplateMarkdown: legacy klic KNOWLEDGE_ROOT se stale parsuje (zpetna kompatibilita)', async () => {
+  const w = await loadWizard();
+  setMetadata(w, { projectBase: 'WRONG_BASE_MUSI_BYT_PREPSANA' });
+  const tpl = `PROJECT_ID:      20260807_Test
+PROJECT_NAME:    Test
+DATE:            2026-08-07
+PROJECT_TYPE:    INT
+CUSTOMER:
+KNOWLEDGE_ROOT:  C:\\PROJECT\\INTERNI\\20260807_Test
+EXECUTION_ROOT:  C:\\DEV\\Claude\\Interni\\20260807_Test
+INITIAL_MODE:    C
+`;
+  w.parseTemplateMarkdown(tpl);
+  assert.equal(w.state.metadata.projectBase, 'C:\\PROJECT');
+  assert.equal(w.getProjectRoot(), 'C:\\PROJECT\\INTERNI\\20260807_Test');
+});
+
+test('parseTemplateMarkdown: ASSETS_ROOT se rozparsuje do assetsBase a getAssetsRoot() vrati puvodni cestu', async () => {
+  const w = await loadWizard();
+  const fullAssetsPath = 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\SAP Service - Projekty\\Zakaznici\\KOFOLA\\20260807_Test';
+  const tpl = `PROJECT_ID:      20260807_Test
+PROJECT_NAME:    Test
+DATE:            2026-08-07
+PROJECT_TYPE:    ZAK
+CUSTOMER:        KOFOLA
+PROJECT_ROOT:    C:\\PROJECT\\ZAKAZNICI\\KOFOLA\\20260807_Test
+EXECUTION_ROOT:  C:\\DEV\\Claude\\Zakaznici\\KOFOLA\\20260807_Test
+ASSETS_ROOT:     ${fullAssetsPath}
+INITIAL_MODE:    C
+`;
+  w.parseTemplateMarkdown(tpl);
+  assert.equal(
+    w.state.metadata.assetsBase,
+    'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\SAP Service - Projekty\\Zakaznici'
+  );
+  assert.equal(w.getAssetsRoot(), fullAssetsPath);
+});
+
 test('buildTree vraci strom s korenem = PROJECT_ID', async () => {
   const w = await loadWizard();
   setMetadata(w, { date: '2026-08-07', shortName: 'Test' });

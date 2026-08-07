@@ -1688,14 +1688,16 @@ PROJECT_NAME:    Plny nazev projektu
 DATE:            ${today}
 PROJECT_TYPE:    INT
 CUSTOMER:
-KNOWLEDGE_ROOT:  ${state.metadata.projectBase || 'C:\\PROJECT'}\\Interni\\${dateShort}_KratkyNazev
+PROJECT_ROOT:    ${state.metadata.projectBase || 'C:\\PROJECT'}\\INTERNI\\${dateShort}_KratkyNazev
 EXECUTION_ROOT:  ${state.metadata.executionBase || 'C:\\DEV\\Claude'}\\Interni\\${dateShort}_KratkyNazev
+ASSETS_ROOT:     ${state.metadata.assetsBase ? state.metadata.assetsBase + '\\' + dateShort + '_KratkyNazev' : ''}
 INITIAL_MODE:    C
 \`\`\`
 
 > **PROJECT_TYPE:** INT = interni projekt ARICOMA | ZAK = zakaznicky projekt (vyzaduje CUSTOMER)
 > **INITIAL_MODE:** A = Teoreticky | B = Analyticky | C = Implementacni
-> **Odvozeni cest:** INT: {root}\\Interni\\{PROJECT_ID} | ZAK: {root}\\Zakaznici\\{CUSTOMER}\\{PROJECT_ID}
+> **Odvozeni cest — project layer:** INT: {root}\\INTERNI\\{PROJECT_ID} | ZAK: {root}\\ZAKAZNICI\\{CUSTOMER}\\{PROJECT_ID}
+> **Odvozeni cest — execution layer:** INT: {root}\\Interni\\{PROJECT_ID} | ZAK: {root}\\Zakaznici\\{CUSTOMER}\\{PROJECT_ID}
 
 ---
 
@@ -2119,8 +2121,9 @@ function parseTemplateMarkdown(text) {
   const projectId = getVar('PROJECT_ID');
   const projectType = getVar('PROJECT_TYPE');
   const customer = getVar('CUSTOMER');
-  const knowledgeRoot = getVar('KNOWLEDGE_ROOT');
+  const knowledgeRoot = getVar('PROJECT_ROOT') || getVar('KNOWLEDGE_ROOT');
   const executionRoot = getVar('EXECUTION_ROOT');
+  const assetsRootRaw = getVar('ASSETS_ROOT');
   const mode = getVar('INITIAL_MODE');
   const date = getVar('DATE');
   const projectName = getVar('PROJECT_NAME');
@@ -2131,18 +2134,41 @@ function parseTemplateMarkdown(text) {
     shortName = projectId.replace(/^\d{8}_?/, '');
   }
 
-  // Derive base paths from KNOWLEDGE_ROOT / EXECUTION_ROOT (strip suffix)
+  // Derive base paths from PROJECT_ROOT / EXECUTION_ROOT (strip suffix)
+  // Case-insensitive: getProjectRoot() emits UPPERCASE segments (ZAKAZNICI/INTERNI),
+  // while a legacy/manually-typed template may still carry the old Capitalized
+  // (Zakaznici/Interni) casing. Without the 'i' flag an uppercase segment would
+  // never match, projectBase would never be stripped, and re-deriving the path
+  // would double it (e.g. C:\PROJECT\INTERNI\X\INTERNI\X).
   if (knowledgeRoot) {
-    const suffix = knowledgeRoot.match(/\\(?:Interni|Zakaznici)\\.*$/);
+    const suffix = knowledgeRoot.match(/\\(?:Interni|Zakaznici)\\.*$/i);
     if (suffix) {
       state.metadata.projectBase = knowledgeRoot.slice(0, -suffix[0].length);
     }
   }
   if (executionRoot) {
-    const suffix = executionRoot.match(/\\(?:Interni|Zakaznici)\\.*$/);
+    const suffix = executionRoot.match(/\\(?:Interni|Zakaznici)\\.*$/i);
     if (suffix) {
       state.metadata.executionBase = executionRoot.slice(0, -suffix[0].length);
     }
+  }
+
+  // Derive assetsBase from ASSETS_ROOT (strip trailing \<CUSTOMER>\<PROJECT_ID> for ZAK
+  // or \<PROJECT_ID> for INT). Binary mirror base is never guessed from the customer
+  // name (see getAssetsRoot()) — if the expected suffix isn't present, leave
+  // assetsBase empty rather than storing a wrong value that would fail silently
+  // downstream.
+  if (assetsRootRaw) {
+    const escapeRx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let assetsSuffixRx = null;
+    if (projectType && projectType.toUpperCase().startsWith('ZAK') && customer && projectId) {
+      assetsSuffixRx = new RegExp('\\\\' + escapeRx(customer) + '\\\\' + escapeRx(projectId) + '$');
+    } else if (projectId) {
+      assetsSuffixRx = new RegExp('\\\\' + escapeRx(projectId) + '$');
+    }
+    state.metadata.assetsBase = (assetsSuffixRx && assetsSuffixRx.test(assetsRootRaw))
+      ? assetsRootRaw.replace(assetsSuffixRx, '')
+      : '';
   }
 
   // Apply to state
