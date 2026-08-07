@@ -8,7 +8,7 @@ purpose: Popisuje branch → PR → merge workflow projektového repa.
 
 # Jak přispět
 
-Repo je privátní (org `ARICOMAAEA`). Branch protection na `main` je **technicky vynucená** — PR je povinný i pro adminy.
+Repo patří organizaci `{{GITHUB_ORG}}`. Branch protection na `main` je **technicky vynucená** — PR je povinný i pro adminy.
 
 ## Model větví — `jmeno/co-dela`
 

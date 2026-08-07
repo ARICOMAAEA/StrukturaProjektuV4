@@ -32,7 +32,11 @@ if (-not (Test-Path -LiteralPath $ManifestPath)) { throw "Manifest neexistuje: $
 $m = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
 
 # Serazeni: app vzestupne, ABAP pred UI5
-$sorted = $m.repos | Sort-Object @{ Expression = 'app' }, @{ Expression = { if ($_.kind -eq 'ABAP') { 0 } else { 1 } } }, @{ Expression = 'path' }
+# @() obalka je NUTNA: Sort-Object nad prazdnym polem vraci $null (ne prazdne
+# pole), a $null.Count pod Set-StrictMode -Version Latest hodi vyjimku o par
+# radku niz. Kazdy novy projekt zacina s repos: [], takze bez @() by tento
+# skript selhal na KAZDEM cerstve zalozenem projektu.
+$sorted = @($m.repos | Sort-Object @{ Expression = 'app' }, @{ Expression = { if ($_.kind -eq 'ABAP') { 0 } else { 1 } } }, @{ Expression = 'path' })
 
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine('<!-- GENEROVANY SOUBOR — needituj rucne.')

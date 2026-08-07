@@ -57,20 +57,31 @@ test('CODEOWNERS: kazdy neKomentarovy owner radek zacina owner token znakem @', 
   }
 });
 
-// Sha-256 zaznamenane pri kopii z KOFOLA zdroje (Task 9) — skripty jsou
-// plne manifest-driven a musi zustat byte-identicke se zdrojem, nikdy
-// "vylepsovane". Pokud tento test spadne, nekdo skript upravil rucne.
+// Sha-256 pins guarding against silent drift in the copied .ps1 assets.
+// bootstrap.ps1 and check-drift.ps1 are still byte-identical to the KOFOLA
+// source copied in Task 9. Generate-ReposMd.ps1 is the one exception: the
+// KOFOLA source has a bug — `Sort-Object` over an empty `repos` array returns
+// $null (not an empty array), and `.Count` on that $null then throws under
+// `Set-StrictMode -Version Latest`. It never surfaced in KOFOLA because that
+// manifest is never empty, but every freshly generated V4 project starts with
+// `repos: []`, so the bug fired on 100% of generated projects. It was fixed
+// here (wrapped in `@(...)`), so this pin no longer means "byte-identical to
+// KOFOLA forever" for this one file — it means "byte-identical to the
+// corrected source". If this test fails, someone edited the script by hand;
+// if you intentionally change it again, recompute and update the pin.
+// The KOFOLA source itself still has the bug and needs a separate back-port —
+// that repo is production/read-only from here and is not touched by this test.
 const PS1_SHA256 = {
   'assets/scripts/bootstrap.ps1': 'a0aa9abe54f039e3b66f8f023a383a40b05e72865916654fdf7ac8cd7a0b59b5',
   'assets/scripts/check-drift.ps1': '42d697f71be8360a86872b8a35fe1b22ec9b7d6be7d600692ab668c497faba12',
-  'assets/scripts/Generate-ReposMd.ps1': '68ea88640dc6e4ae3374041d44bc8056bf5478ba47aabae5838088a37d6259e1',
+  'assets/scripts/Generate-ReposMd.ps1': '5091c899b88deaf49bdf8e5a79eeff1da7b5b46601f72583180dbe83a529c768',
 };
 
 test('kopirovane .ps1 skripty zustavaji byte-identicke se zdrojem (sha256 pin)', async () => {
   for (const [rel, expected] of Object.entries(PS1_SHA256)) {
     const buf = await readFile(join(ROOT, rel));
     const actual = createHash('sha256').update(buf).digest('hex');
-    assert.equal(actual, expected, `${rel} se zmenil oproti kopii z KOFOLA zdroje (Task 9)`);
+    assert.equal(actual, expected, `${rel} se zmenil oproti ocekavane (pinovane) verzi`);
   }
 });
 

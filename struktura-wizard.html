@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meta Framework V3 — Project Wizard</title>
+  <title>Meta Framework V4 — Project Wizard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -66,7 +66,7 @@
     <!-- Sidebar -->
     <aside id="sidebar" class="w-64 bg-white border-r border-zinc-200 flex-shrink-0 flex flex-col">
       <div class="p-5 border-b border-zinc-200">
-        <h1 class="text-base font-bold text-zinc-900">Meta Framework V3</h1>
+        <h1 class="text-base font-bold text-zinc-900">Meta Framework V4</h1>
         <p class="text-xs text-zinc-500 mt-1">Project Structure Wizard</p>
         <div class="flex gap-2 mt-3">
           <button onclick="el('importFile').click()" class="flex-1 px-2 py-2 text-xs font-medium border border-dashed border-zinc-300 rounded-md hover:bg-zinc-50 hover:border-primary-400 transition-colors text-zinc-600 flex items-center justify-center gap-1">
@@ -98,7 +98,7 @@
           <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           Reset wizard
         </button>
-        <div class="text-center text-xs text-zinc-400 mt-2">V3.0</div>
+        <div class="text-center text-xs text-zinc-400 mt-2">V4.0</div>
       </div>
     </aside>
 
@@ -1143,10 +1143,15 @@ function generateClaudePrompt() {
 
   // Bez explicitniho assetsRoot je prompt nepouzitelny (junction _assets by mirilo nikam)
   // a nesmi se tvarit jako hotovy. Viz spec par. 4.2 — cesta se nedopocitava.
-  const guard = getAssetsRoot()
+  // Stejne tak bez branchOwner (jmeno pro branch ruleset — spec ho oznacuje jako povinne)
+  // by CONTRIBUTING.md skoncil s prazdnym prikladem jmena a FAZE 6 nemela co ilustrovat.
+  const missingInputs = [];
+  if (!getAssetsRoot()) missingInputs.push('koren binarniho mirroru (krok "Topologie & Git")');
+  if (!m.branchOwner) missingInputs.push('jmeno pro branch ruleset (krok "Topologie & Git")');
+  const guard = missingInputs.length === 0
     ? ''
-    : '!! NEDOKONCENY VSTUP — ve wizardu neni vyplnen koren binarniho mirroru (krok "Topologie & Git").\n' +
-      '!! NESPOUSTEJ tento prompt. Vrat se do wizardu, vyber koren a zkopiruj prompt znovu.\n\n';
+    : `!! NEDOKONCENY VSTUP — ve wizardu neni vyplneno: ${missingInputs.join(', ')}.\n` +
+      '!! NESPOUSTEJ tento prompt. Vrat se do wizardu, dopln chybejici udaje a zkopiruj prompt znovu.\n\n';
 
   let prompt = `${guard}Zaloz novy projekt "${m.fullName || pid}" v topologii V4 (Meta Framework).
 
@@ -1685,7 +1690,7 @@ Pro KAZDOU strukturalni slozku vytvor README.md typu folder-description: 00_PROJ
 created: ${today}
 author: ${m.fullName || pid}
 origin_type: template
-origin_source: Meta Framework V3 init
+origin_source: Meta Framework V4 init
 purpose: Popis ucelu slozky <NAZEV>
 tags: [folder-description, readme]
 status: active
@@ -1768,9 +1773,11 @@ Zkopiruj sablony ze slozky nastroje **${toolRoot}\\assets\\** do ${pRoot}:
 | \`assets\\git\\gitignore\` | \`.gitignore\` (POZOR: pridat tecku) |
 | \`assets\\git\\gitattributes\` | \`.gitattributes\` (POZOR: pridat tecku) |
 
-Skripty kopiruj **beze zmeny** — jsou plne manifest-driven. Sablony obsahuji DVA ruzne
+Skripty kopiruj **beze zmeny** — jsou plne manifest-driven. Sablony obsahuji TRI ruzne
 zastupne symboly, nezamenuj je: \`{{BRANCH_OWNER}}\` v \`.github\\CONTRIBUTING.md\` nahrad
-hodnotou \`${m.branchOwner}\` (krestni jmeno pro nazvy vetvi, bez \`@\`). \`@{{GITHUB_OWNER}}\`
+hodnotou \`${m.branchOwner}\` (krestni jmeno pro nazvy vetvi, bez \`@\`). \`{{GITHUB_ORG}}\`
+take v \`.github\\CONTRIBUTING.md\` nahrad hodnotou \`${m.githubOrg || 'ARICOMAAEA'}\`
+(GitHub organizace, ve ktere repo vznika). \`@{{GITHUB_OWNER}}\`
 v \`.github\\CODEOWNERS\` je ale GitHub ucet (s \`@\`), ktery wizard nezna — ZEPTEJ SE
 UZIVATELE na jeho GitHub username a vysvetli mu, ze to NENI totez jako \`${m.branchOwner}\`
 a ze ucet musi mit v cilove organizaci alespon \`write\` pristup, jinak GitHub radek v
@@ -1810,8 +1817,33 @@ gh api -X PUT repos/${repoFull}/branches/main/protection \\
   -F restrictions=null
 gh api -X PATCH repos/${repoFull} -F delete_branch_on_merge=true
 \`\`\`
-Pote v repu vytvor ruleset \`personal-branch-naming\`, ktery odmitne push vetve mimo vzor
-\`${m.branchOwner}/<co-dela>\` (napr. \`${m.branchOwner}/br-001-analyza\`).
+Pote v repu vytvor ruleset \`personal-branch-naming\`. Vzor je ZAMERNE GENERICKY —
+\`<jmeno>/<co-dela>\` pro libovolne jmeno, ne jen pro \`${m.branchOwner}\`. Topologie
+pocita s vice contributory, ruleset povolujici jen jedno jmeno by je vyradil:
+\`\`\`bash
+gh api repos/${repoFull}/rulesets --method POST --input - <<'EOF'
+{
+  "name": "personal-branch-naming",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": { "include": ["~ALL"], "exclude": ["refs/heads/main"] }
+  },
+  "rules": [
+    {
+      "type": "branch_name_pattern",
+      "parameters": {
+        "operator": "regex",
+        "pattern": "^[a-z0-9-]+/[a-z0-9-]+$",
+        "name": "personal-branch-naming",
+        "negate": false
+      }
+    }
+  ]
+}
+EOF
+\`\`\`
+(\`${m.branchOwner}\` je jen priklad jmena pouzity v \`CONTRIBUTING.md\`, napr. \`${m.branchOwner}/br-001-analyza\` — samotny ruleset ho nevynucuje.)
 
 ## FAZE 7 — Junctiony
 \`\`\`powershell
@@ -1822,7 +1854,7 @@ Skript nikdy nic nemaze ani neprepisuje — pri nesouladu jen varuje.
 
 ## FAZE 8 — Akceptacni brana
 \`\`\`powershell
-powershell -File "${pRoot}\\scripts\\Test-Topology.ps1"
+powershell -File "${pRoot}\\scripts\\Test-Topology.ps1" -ExpectedRemote "${repoFull}"
 \`\`\`
 Musi vypsat \`GATE PROSEL\`. Kdyz ne, NEHLAS uspech — vypis, ktera kontrola selhala, a zastav.
 `;
@@ -1871,7 +1903,7 @@ function downloadFile(content, filename) {
 function downloadBlankTemplate() {
   const today = new Date().toISOString().slice(0, 10);
   const dateShort = today.replace(/-/g, '');
-  const tpl = `# META FRAMEWORK V3 — Inicializace projektu
+  const tpl = `# META FRAMEWORK V4 — Inicializace projektu
 
 > Vypln VARIABLES a jednotlive sekce. Hotovy soubor nahraj do wizardu (tlacitko "Import .md" nebo pretazenim na stranku).
 > Radky zacinajici > jsou napoveda — nemaz je, parser je ignoruje.
@@ -1891,12 +1923,19 @@ PROJECT_ROOT:    ${state.metadata.projectBase || 'C:\\PROJECT'}\\INTERNI\\${date
 EXECUTION_ROOT:  ${state.metadata.executionBase || 'C:\\DEV\\Claude'}\\Interni\\${dateShort}_KratkyNazev
 ASSETS_ROOT:     ${state.metadata.assetsBase ? state.metadata.assetsBase + '\\' + dateShort + '_KratkyNazev' : ''}
 INITIAL_MODE:    C
+GITHUB_ORG:      ${state.metadata.githubOrg || 'ARICOMAAEA'}
+REPO_NAME:
+REPO_PRIVATE:    ano
+BRANCH_OWNER:
 \`\`\`
 
 > **PROJECT_TYPE:** INT = interni projekt ARICOMA | ZAK = zakaznicky projekt (vyzaduje CUSTOMER)
 > **INITIAL_MODE:** A = Teoreticky | B = Analyticky | C = Implementacni
 > **Odvozeni cest — project layer:** INT: {root}\\INTERNI\\{PROJECT_ID} | ZAK: {root}\\ZAKAZNICI\\{CUSTOMER}\\{PROJECT_ID}
 > **Odvozeni cest — execution layer:** INT: {root}\\Interni\\{PROJECT_ID} | ZAK: {root}\\Zakaznici\\{CUSTOMER}\\{PROJECT_ID}
+> **REPO_NAME:** prazdne = odvodi se automaticky z PROJECT_ID.
+> **REPO_PRIVATE:** ano/ne nebo true/false. Prazdne nebo nerozpoznane = ano (privatni je bezpecny vychozi stav).
+> **BRANCH_OWNER:** krestni jmeno (bez diakritiky, malymi pismeny) pro priklad v CONTRIBUTING.md a FAZE 6 — POVINNE.
 
 ---
 
@@ -2325,6 +2364,10 @@ function parseTemplateMarkdown(text) {
   const assetsRootRaw = getVar('ASSETS_ROOT');
   const mode = getVar('INITIAL_MODE');
   const date = getVar('DATE');
+  const githubOrg = getVar('GITHUB_ORG');
+  const repoName = getVar('REPO_NAME');
+  const repoPrivateRaw = getVar('REPO_PRIVATE');
+  const branchOwner = getVar('BRANCH_OWNER');
   const projectName = getVar('PROJECT_NAME');
 
   // Derive shortName from PROJECT_ID (remove date prefix)
@@ -2375,6 +2418,14 @@ function parseTemplateMarkdown(text) {
   if (customer) state.metadata.customer = customer;
   if (shortName) state.metadata.shortName = shortName;
   if (projectName) state.metadata.fullName = projectName;
+  if (githubOrg) state.metadata.githubOrg = githubOrg;
+  if (repoName) state.metadata.repoName = repoName;
+  if (repoPrivateRaw) {
+    // Accept ano/ne or true/false; default to private (safe default) on
+    // anything unrecognised rather than silently flipping the repo public.
+    state.metadata.repoPrivate = !/^(ne|false|no)$/i.test(repoPrivateRaw.trim());
+  }
+  if (branchOwner) state.metadata.branchOwner = branchOwner;
   if (date) state.metadata.date = date;
   if (mode) state.metadata.mode = mode.toUpperCase();
 

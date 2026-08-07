@@ -121,3 +121,35 @@ Describe 'Test-Topology.ps1' {
     }
     Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
 }
+
+Describe 'Generate-ReposMd.ps1' {
+
+    # Kazdy cerstve vygenerovany V4 projekt zacina s prazdnym repos.json (repos: []).
+    # Sort-Object nad prazdnym polem vraci $null (ne prazdne pole), a nasledne
+    # $sorted.Count pod Set-StrictMode -Version Latest hodi vyjimku — skript
+    # tedy bez @(...) obalky selze na UPLNE KAZDEM cerstve zalozenem projektu.
+    $genScript = Join-Path $here '..\assets\scripts\Generate-ReposMd.ps1'
+    $genRoot   = Join-Path $env:TEMP ("v4gen_" + [guid]::NewGuid().ToString('N').Substring(0,8))
+    $genDevCtl = Join-Path $genRoot '00_PROJECT_CONTROL\08_DEV'
+    New-Item -ItemType Directory -Force -Path $genDevCtl, (Join-Path $genRoot 'scripts') | Out-Null
+    Copy-Item $genScript (Join-Path $genRoot 'scripts\Generate-ReposMd.ps1')
+
+    $emptyManifest = @{
+        project    = 'TEST_prazdny_manifest'
+        devRoot    = $genRoot
+        assetsRoot = $genRoot
+        repos      = @()
+    } | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText(
+        (Join-Path $genDevCtl 'repos.json'), $emptyManifest,
+        (New-Object System.Text.UTF8Encoding $true))
+
+    It 'bezi s exit 0 na manifestu s prazdnym repos: []' {
+        $genGate = Join-Path $genRoot 'scripts\Generate-ReposMd.ps1'
+        & powershell -NoProfile -File $genGate -ManifestPath (Join-Path $genDevCtl 'repos.json') -OutputPath (Join-Path $genDevCtl 'REPOS.md') 2>&1 | Out-Null
+        $LASTEXITCODE | Should Be 0
+        Test-Path -LiteralPath (Join-Path $genDevCtl 'REPOS.md') | Should Be $true
+    }
+
+    Remove-Item -Recurse -Force $genRoot -ErrorAction SilentlyContinue
+}

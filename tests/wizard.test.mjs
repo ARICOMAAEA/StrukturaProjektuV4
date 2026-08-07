@@ -303,3 +303,157 @@ test('prompt predepisuje UTF-8 s BOM a odkazuje na assets sablony', async () => 
   assert.ok(/UTF-8 s BOM/i.test(p), 'chybi pozadavek na BOM');
   assert.ok(p.includes('assets\\scripts'), 'chybi odkaz na zdroj skriptu');
 });
+
+// --- Finding 2: wizard je V4, ne V3 ---
+
+test('wizard se hlasi jako V4 v title, sidebar hlavicce a verzi', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const here = dirname(fileURLToPath(import.meta.url));
+  const html = await readFile(join(here, '..', 'struktura-wizard.html'), 'utf8');
+  assert.ok(html.includes('<title>Meta Framework V4'), 'title stale rika V3');
+  assert.ok(html.includes('Meta Framework V4</h1>'), 'sidebar hlavicka stale rika V3');
+  assert.ok(html.includes('>V4.0<'), 'verze v patce stale rika V3.0');
+  assert.ok(!/Meta Framework V3/.test(html), 'nekde v HTML jeste zbylo "Meta Framework V3"');
+});
+
+test('folder-description README frontmatter uvadi V4 init, ne V3', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  assert.ok(p.includes('origin_source: Meta Framework V4 init'), 'origin_source stale rika V3 init');
+  assert.ok(!p.includes('Meta Framework V3 init'), 'origin_source jeste rika V3 init');
+});
+
+test('stahnutelna sablona ma nadpis V4, ne V3', async () => {
+  let captured = '';
+  const w = await loadWizard({
+    Blob: class { constructor(parts) { captured = parts.join(''); } },
+  });
+  w.downloadBlankTemplate();
+  assert.ok(captured.includes('# META FRAMEWORK V4'), 'sablona stale rika V3');
+});
+
+// --- Finding 3: akceptacni brana musi overit remote ---
+
+test('FAZE 8 vola Test-Topology.ps1 s -ExpectedRemote', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  const faze8 = p.slice(p.indexOf('FAZE 8'));
+  assert.ok(/Test-Topology\.ps1"\s+-ExpectedRemote\s+"ARICOMAAEA\/KOFOLA_20260807_Test"/.test(faze8),
+    'FAZE 8 nepreda -ExpectedRemote, kontrola 8 gate se pak vzdy SKIPne');
+});
+
+// --- Finding 4: Rychly import nesmi tise zahodit GitHub pole ---
+
+test('downloadBlankTemplate emituje GITHUB_ORG/REPO_NAME/REPO_PRIVATE/BRANCH_OWNER', async () => {
+  let captured = '';
+  const w = await loadWizard({
+    Blob: class { constructor(parts) { captured = parts.join(''); } },
+  });
+  w.downloadBlankTemplate();
+  assert.ok(/GITHUB_ORG:/.test(captured), 'sablona neobsahuje GITHUB_ORG');
+  assert.ok(/REPO_NAME:/.test(captured), 'sablona neobsahuje REPO_NAME');
+  assert.ok(/REPO_PRIVATE:/.test(captured), 'sablona neobsahuje REPO_PRIVATE');
+  assert.ok(/BRANCH_OWNER:/.test(captured), 'sablona neobsahuje BRANCH_OWNER');
+});
+
+test('parseTemplateMarkdown: GITHUB_ORG/REPO_NAME/REPO_PRIVATE/BRANCH_OWNER se rozparsuji (round-trip)', async () => {
+  const w = await loadWizard();
+  const tpl = `PROJECT_ID:      20260807_Test
+PROJECT_NAME:    Test
+DATE:            2026-08-07
+PROJECT_TYPE:    INT
+CUSTOMER:
+PROJECT_ROOT:    C:\\PROJECT\\INTERNI\\20260807_Test
+EXECUTION_ROOT:  C:\\DEV\\Claude\\Interni\\20260807_Test
+INITIAL_MODE:    C
+GITHUB_ORG:      MojeOrg
+REPO_NAME:       muj-repo
+REPO_PRIVATE:    ne
+BRANCH_OWNER:    petr
+`;
+  w.parseTemplateMarkdown(tpl);
+  assert.equal(w.state.metadata.githubOrg, 'MojeOrg');
+  assert.equal(w.state.metadata.repoName, 'muj-repo');
+  assert.equal(w.state.metadata.repoPrivate, false);
+  assert.equal(w.state.metadata.branchOwner, 'petr');
+});
+
+test('parseTemplateMarkdown: REPO_PRIVATE chybejici nebo nerozpoznane zustava private (bezpecny vychozi stav)', async () => {
+  const w = await loadWizard();
+  const tplMissing = `PROJECT_ID:      20260807_Test
+PROJECT_NAME:    Test
+DATE:            2026-08-07
+PROJECT_TYPE:    INT
+CUSTOMER:
+PROJECT_ROOT:    C:\\PROJECT\\INTERNI\\20260807_Test
+EXECUTION_ROOT:  C:\\DEV\\Claude\\Interni\\20260807_Test
+INITIAL_MODE:    C
+`;
+  w.parseTemplateMarkdown(tplMissing);
+  assert.equal(w.state.metadata.repoPrivate, true, 'chybejici REPO_PRIVATE musi zustat private');
+
+  const w2 = await loadWizard();
+  const tplGibberish = tplMissing + 'REPO_PRIVATE:    asi jo\n';
+  w2.parseTemplateMarkdown(tplGibberish);
+  assert.equal(w2.state.metadata.repoPrivate, true, 'nerozpoznana hodnota REPO_PRIVATE musi zustat private');
+});
+
+test('prompt varuje, kdyz branchOwner neni vyplnen (spec ho oznacuje jako povinny)', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  setMetadata(w, { branchOwner: '' });
+  const p = w.generateClaudePrompt();
+  assert.ok(p.startsWith('!! NEDOKONCENY VSTUP'), 'prompt bez branchOwner musi zacinat varovanim');
+});
+
+// --- Finding 5: FAZE 6 ma konkretni prikaz a ruleset je genericky ---
+
+test('FAZE 6 obsahuje konkretni gh api prikaz pro ruleset, ne jen prozu', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  const faze6 = p.slice(p.indexOf('FAZE 6'), p.indexOf('FAZE 7'));
+  assert.ok(/gh api repos\/ARICOMAAEA\/KOFOLA_20260807_Test\/rulesets/.test(faze6),
+    'FAZE 6 neobsahuje konkretni gh api prikaz pro ruleset');
+  assert.ok(faze6.includes('branch_name_pattern'), 'FAZE 6 neobsahuje JSON telo rulesetu');
+});
+
+test('FAZE 6 ruleset vynucuje genericky vzor <jmeno>/<co-dela>, ne jen branchOwner', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  const faze6 = p.slice(p.indexOf('FAZE 6'), p.indexOf('FAZE 7'));
+  assert.ok(faze6.includes('^[a-z0-9-]+/[a-z0-9-]+$'), 'ruleset pattern neni genericky (chybi regex z CONTRIBUTING.md)');
+  assert.ok(/ZAMERNE GENERICKY|genericky/i.test(faze6), 'text nevysvetluje, ze vzor je genericky pro vsechny contributory');
+});
+
+// --- Finding 5b: kazdy {{TOKEN}} v assets/ musi mit instrukci k substituci v promptu ---
+
+test('kazdy {{TOKEN}} zastupny symbol v assets/ je zminen v generovanem promptu', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const here = dirname(fileURLToPath(import.meta.url));
+  const assetsRoot = join(here, '..', 'assets');
+
+  const entries = await readdir(assetsRoot, { recursive: true, withFileTypes: true });
+  const tokens = new Set();
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const full = join(entry.path ?? entry.parentPath, entry.name);
+    const content = await readFile(full, 'utf8');
+    for (const m of content.matchAll(/\{\{[A-Z0-9_]+\}\}/g)) tokens.add(m[0]);
+  }
+  assert.ok(tokens.size > 0, 'test setup: v assets/ nebyl nalezen zadny {{TOKEN}} — over cestu/regex');
+
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  for (const token of tokens) {
+    assert.ok(p.includes(token), `prompt nezminuje zastupny symbol ${token} (chybi instrukce k substituci)`);
+  }
+});
