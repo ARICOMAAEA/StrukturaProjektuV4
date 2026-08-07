@@ -1117,6 +1117,19 @@ function bulletList(arr, fallback) {
   return items.length ? items.map(i => `- ${i}`).join('\n') : fallback || '_Neuvedeno._';
 }
 
+const TOOL_ROOT_FALLBACK = 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\00_TOOLS\\StrukturaProjektuV4';
+
+/** Odvodi absolutni cestu ke slozce nastroje z location (bezi pres file://).
+ *  Kdyz to nejde, vrati fallback — a volajici to viditelne oznami. */
+function getToolRoot() {
+  try {
+    const p = decodeURIComponent(location.pathname).replace(/^\//, '').replace(/\//g, '\\');
+    const dir = p.slice(0, p.lastIndexOf('\\'));
+    if (dir && /:\\/.test(dir)) return dir;
+  } catch (e) { /* file:// neni k dispozici (testy, http) */ }
+  return TOOL_ROOT_FALLBACK;
+}
+
 function generateClaudePrompt() {
   const m = state.metadata;
   const b = state.business;
@@ -1694,18 +1707,118 @@ status: active
 \`\`\`
 
 Vyznam vrstev pro obsah README: 01_BUSINESS = PROC (Why); 02_KNOWLEDGE = CO (What); 03_ARCHITECTURE = JAK (How), ADR append-only; 04_ENGINEERING = CIM (With what); 05_PLAN = KDY (When); 06_DATA = Fakta (fakt vs. interpretace); 07_RESOURCE = externi vstupy (nejsou zavazna pravidla); 08_DEV = manifest dev repozitaru (repos.json je jedina pravda, REPOS.md je generovany). 10_DELIVERY = operativni dorucovaci vrstva (caste zmeny). 20_SHARED_REFERENCE = sablony / standardy / naming konvence.
+`;
 
-## Execution Layer: ${eRoot}
+  const toolRoot = getToolRoot();
+  const visibility = m.repoPrivate ? '--private' : '--public';
 
-### Adresarova struktura
-- apps/
-- .claude/skills/
+  prompt += `
+---
 
-### CONTEXT junction
-Spust v PowerShell:
-\`\`\`powershell
-New-Item -ItemType Junction -Path "${eRoot}\\CONTEXT" -Target "${pRoot}"
+# Postup — 8 fazi
+
+Provadej je v tomto poradi. Fáze oznacene jako potvrzovaci brana jsou navenek pusobici
+a nevratne — pred kazdou z nich se ZEPTEJ uzivatele a vypis presny prikaz, ktery se chysta
+se spustit.
+
+## FAZE 0 — Preflight (nic se nemeni)
+1. \`gh auth status\` — musi byt prihlaseny. Kdyz ne, ZASTAV.
+2. \`git --version\` — musi existovat. Kdyz ne, ZASTAV.
+3. Overit, ze NEEXISTUJE zadna z techto cest:
+   - ${pRoot}
+   - ${eRoot}
+   - ${aRoot}
+   Kdyz kterakoliv existuje, ZASTAV a nahlas ji. Tento nastroj zaklada jen nove projekty.
+
+## FAZE 1 — Tri koreny
+Vytvor prazdne slozky:
+- ${pRoot}
+- ${eRoot}\\apps
+- ${eRoot}\\.claude\\skills
+- ${aRoot}
+
+## FAZE 2 — Obsah projektove vrstvy
+Vytvor strukturu a soubory popsane vyse v ${pRoot}.
+V \`00_PROJECT_CONTROL\\08_DEV\\\` vytvor \`repos.json\` s prazdnym seznamem repozitaru:
+
+\`\`\`json
+{
+  "project": "${getRepoName()}",
+  "devRoot": "${eRoot.replace(/\\/g, '\\\\')}",
+  "assetsRoot": "${aRoot.replace(/\\/g, '\\\\')}",
+  "repos": []
+}
 \`\`\`
+
+DULEZITE: \`repos.json\` cte PowerShell 5.1 — uloz ho jako **UTF-8 s BOM**. Bez BOM ho PS 5.1
+precte pres ANSI codepage a rozbije diakritiku. Totez plati pro vsechny generovane \`.md\`.
+
+Pote vygeneruj \`REPOS.md\`:
+\`\`\`powershell
+powershell -File "${pRoot}\\scripts\\Generate-ReposMd.ps1"
+\`\`\`
+(prazdny manifest = prazdna tabulka, to je spravne — aplikace se pridavaji az pozdeji)
+
+## FAZE 3 — V4 nadstavba
+Zkopiruj sablony ze slozky nastroje **${toolRoot}\\assets\\** do ${pRoot}:
+
+| Zdroj | Cil |
+|---|---|
+| \`assets\\scripts\\bootstrap.ps1\` | \`scripts\\bootstrap.ps1\` |
+| \`assets\\scripts\\check-drift.ps1\` | \`scripts\\check-drift.ps1\` |
+| \`assets\\scripts\\Generate-ReposMd.ps1\` | \`scripts\\Generate-ReposMd.ps1\` |
+| \`assets\\scripts\\Test-Topology.ps1\` | \`scripts\\Test-Topology.ps1\` |
+| \`assets\\github\\CODEOWNERS\` | \`.github\\CODEOWNERS\` |
+| \`assets\\github\\CONTRIBUTING.md\` | \`.github\\CONTRIBUTING.md\` |
+| \`assets\\github\\PULL_REQUEST_TEMPLATE.md\` | \`.github\\PULL_REQUEST_TEMPLATE.md\` |
+| \`assets\\git\\gitignore\` | \`.gitignore\` (POZOR: pridat tecku) |
+| \`assets\\git\\gitattributes\` | \`.gitattributes\` (POZOR: pridat tecku) |
+
+Skripty kopiruj **beze zmeny** — jsou plne manifest-driven. V \`.github\\CODEOWNERS\`
+a \`.github\\CONTRIBUTING.md\` nahrad zastupny symbol \`{{BRANCH_OWNER}}\` hodnotou \`${m.branchOwner}\`.
+Dale vytvor \`_local\\.gitkeep\` (prazdny) a \`CHANGELOG.md\` se zaznamem verze \`1.0.0\` dle Keep a Changelog.
+
+## FAZE 4 — Git a prvni commit
+\`\`\`bash
+cd "${pRoot}"
+git init -b main
+git add -A
+git commit -m "chore: zalozeni projektu v topologii V4"
+\`\`\`
+Pred commitem overit, ze \`git status --short\` neukazuje zadnou binarku ani \`_dev\`/\`_assets\`.
+
+## FAZE 5 — [POTVRZENI] Zalozeni GitHub repozitare a push
+ZEPTEJ SE UZIVATELE, nez cokoliv spustis. Vypis mu presne tyto prikazy:
+\`\`\`bash
+gh repo create ${repoFull} ${visibility} --source="${pRoot}" --remote=origin --push
+\`\`\`
+Toto zaklada repozitar v organizaci — preklep v nazvu vytvori zavejecnou repo, kterou pak nekdo musi uklidit.
+
+## FAZE 6 — [POTVRZENI] branch protection a ruleset
+Teprve ted, kdyz \`main\` uz existuje a neni prazdny. ZEPTEJ SE UZIVATELE.
+\`\`\`bash
+gh api -X PUT repos/${repoFull}/branches/main/protection \\
+  -F required_pull_request_reviews[required_approving_review_count]=0 \\
+  -F enforce_admins=true \\
+  -F required_status_checks=null \\
+  -F restrictions=null
+gh api -X PATCH repos/${repoFull} -F delete_branch_on_merge=true
+\`\`\`
+Pote v repu vytvor ruleset \`personal-branch-naming\`, ktery odmitne push vetve mimo vzor
+\`${m.branchOwner}/<co-dela>\` (napr. \`${m.branchOwner}/br-001-analyza\`).
+
+## FAZE 7 — Junctiony
+\`\`\`powershell
+powershell -File "${pRoot}\\scripts\\bootstrap.ps1"
+\`\`\`
+Vytvori \`_dev\` -> EXECUTION_ROOT, \`_assets\` -> ASSETS_ROOT a reverzni \`CONTEXT\` v execution vrstve.
+Skript nikdy nic nemaze ani neprepisuje — pri nesouladu jen varuje.
+
+## FAZE 8 — Akceptacni brana
+\`\`\`powershell
+powershell -File "${pRoot}\\scripts\\Test-Topology.ps1"
+\`\`\`
+Musi vypsat \`GATE PROSEL\`. Kdyz ne, NEHLAS uspech — vypis, ktera kontrola selhala, a zastav.
 `;
 
   return prompt;

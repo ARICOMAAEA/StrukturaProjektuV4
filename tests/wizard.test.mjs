@@ -263,3 +263,40 @@ test('strom obsahuje V4 nadstavbu', async () => {
     assert.ok(names.includes(expected), `ve stromu chybi ${expected}`);
   }
 });
+
+test('prompt ma vsech 8 fazi ve spravnem poradi', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  const order = ['FAZE 0', 'FAZE 1', 'FAZE 2', 'FAZE 3', 'FAZE 4', 'FAZE 5', 'FAZE 6', 'FAZE 7', 'FAZE 8'];
+  let last = -1;
+  for (const f of order) {
+    const at = p.indexOf(f);
+    assert.ok(at > -1, `chybi ${f}`);
+    assert.ok(at > last, `${f} je mimo poradi`);
+    last = at;
+  }
+});
+
+test('branch protection prijde az PO prvnim pushi', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  assert.ok(p.indexOf('gh repo create') < p.indexOf('branch protection'),
+    'protection se nesmi zapinat pred prvnim pushem — na prazdny main by push neprosel');
+});
+
+test('obe GitHub faze maji potvrzovaci branu', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  assert.equal((p.match(/\[POTVRZENI\]/g) || []).length, 2);
+});
+
+test('prompt predepisuje UTF-8 s BOM a odkazuje na assets sablony', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  assert.ok(/UTF-8 s BOM/i.test(p), 'chybi pozadavek na BOM');
+  assert.ok(p.includes('assets\\scripts'), 'chybi odkaz na zdroj skriptu');
+});
