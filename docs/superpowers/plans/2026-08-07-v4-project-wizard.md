@@ -203,10 +203,14 @@ test('buildTree vraci strom s korenem = PROJECT_ID', async () => {
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/"
+    "test": "node --test tests/*.test.mjs"
   }
 }
 ```
+
+Pozn.: glob `tests/*.test.mjs`, **ne** `tests/`. Bare-directory forma pada na Node v24.13.0
+s `MODULE_NOT_FOUND`. Glob resi Node nativne, takze funguje i pres cmd.exe, ktery npm
+na Windows spousti.
 
 - [ ] **Step 4: Spusť testy**
 
