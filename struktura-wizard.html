@@ -1768,8 +1768,14 @@ Zkopiruj sablony ze slozky nastroje **${toolRoot}\\assets\\** do ${pRoot}:
 | \`assets\\git\\gitignore\` | \`.gitignore\` (POZOR: pridat tecku) |
 | \`assets\\git\\gitattributes\` | \`.gitattributes\` (POZOR: pridat tecku) |
 
-Skripty kopiruj **beze zmeny** — jsou plne manifest-driven. V \`.github\\CODEOWNERS\`
-a \`.github\\CONTRIBUTING.md\` nahrad zastupny symbol \`{{BRANCH_OWNER}}\` hodnotou \`${m.branchOwner}\`.
+Skripty kopiruj **beze zmeny** — jsou plne manifest-driven. Sablony obsahuji DVA ruzne
+zastupne symboly, nezamenuj je: \`{{BRANCH_OWNER}}\` v \`.github\\CONTRIBUTING.md\` nahrad
+hodnotou \`${m.branchOwner}\` (krestni jmeno pro nazvy vetvi, bez \`@\`). \`@{{GITHUB_OWNER}}\`
+v \`.github\\CODEOWNERS\` je ale GitHub ucet (s \`@\`), ktery wizard nezna — ZEPTEJ SE
+UZIVATELE na jeho GitHub username a vysvetli mu, ze to NENI totez jako \`${m.branchOwner}\`
+a ze ucet musi mit v cilove organizaci alespon \`write\` pristup, jinak GitHub radek v
+CODEOWNERS tise ignoruje. Pokud uzivatel username nezna, zastupny symbol \`{{GITHUB_OWNER}}\`
+v souboru nech beze zmeny a uveď to jako otevrenou polozku k dořešeni, nehadej ho.
 Dale vytvor \`_local\\.gitkeep\` (prazdny) a \`CHANGELOG.md\` se zaznamem verze \`1.0.0\` dle Keep a Changelog.
 
 Pote, kdyz uz je \`Generate-ReposMd.ps1\` na miste, vygeneruj \`REPOS.md\`:

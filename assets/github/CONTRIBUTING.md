@@ -2,7 +2,7 @@
 created: 2026-07-29 12:00
 author: Vojta (p. Lička)
 origin_type: manual
-origin_source: "Plan 2026-07-29-project-topology-v4.md, Task 1 — adaptace .github/CONTRIBUTING.md z projektu AI Pivovar"
+origin_source: "StrukturaProjektuV3, Task 9 — assets/github/CONTRIBUTING.md sablona pro generovane projekty"
 purpose: Popisuje branch → PR → merge workflow projektového repa.
 ---
 
@@ -47,25 +47,14 @@ git worktree remove .claude/worktrees/<jmeno>+<co-dela>
 git branch -D <jmeno>/<co-dela>
 ```
 
-> **Windows gotcha**: `git worktree remove` může selhat s `Permission
-> denied`, protože `bootstrap.ps1` uvnitř worktree vytváří NTFS junctiony
-> (`_dev`, `_assets`) a ty mohou blokovat gitovo rekurzivní mazání. Bezpečné
-> řešení — nejdřív smazat samotné junction odkazy (NE data, na která míří):
->
-> ```powershell
-> (Get-Item -Force ".claude\worktrees\<jmeno>+<co-dela>\_dev").Delete()
-> (Get-Item -Force ".claude\worktrees\<jmeno>+<co-dela>\_assets").Delete()
-> ```
->
-> a teprve pak znovu spustit `git worktree remove ...` (případně `git
-> worktree prune`, pokud zůstane osiřelý záznam).
-
 ### Odstraneni worktree
 
 `git worktree remove` na Windows padne "Permission denied", pokud worktree obsahuje
-junctiony `_dev` / `_assets`. Nejdriv je zrus — jen link, nikdy ne cil:
+junctiony `_dev` / `_assets` (vytvořené `bootstrap.ps1`) — ty mohou blokovat gitovo
+rekurzivní mazání. Nejdriv je zrus — jen link, nikdy ne cil, na ktery ukazuji:
 
 ```powershell
+$wt = ".claude\worktrees\<jmeno>+<co-dela>"
 [System.IO.Directory]::Delete("$wt\_dev", $false)
 [System.IO.Directory]::Delete("$wt\_assets", $false)
 Remove-Item -Recurse -Force $wt
@@ -88,7 +77,7 @@ PowerShellu a filesystemu projde skrz a smaze cilova data.
 
 ## Omezení paralelní práce
 
-Dvě session mohou nezávisle psát dokumentaci ve vlastních worktree. **Nesmí ale zároveň spustit `zvl_dev-loop-v2` nad stejnou aplikací** — dev vrstva je sdílená (není izolovaná) a na SAP systému S23 je jeden aktivní stav paketu. Git worktree tohle nechrání.
+Dvě session mohou nezávisle psát dokumentaci ve vlastních worktree. **Nesmí ale zároveň spouštět dev/build cyklus nad stejnou aplikací**, pokud je dev vrstva sdílená (není izolovaná per session) a existuje jen jeden aktivní stav (např. sdílené vývojové prostředí, jeden nasazený balíček). Git worktree izoluje pouze pracovní kopii zdrojového kódu, nikoli sdílený stav mimo git — to je potřeba ošetřit zvlášť podle konkrétního nástroje/prostředí projektu.
 
 ## Řešení konfliktů
 
