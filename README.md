@@ -38,9 +38,15 @@ users, presentations, or as a refresher before working with the framework.
 
 ## Usage
 
-1. Open `struktura-wizard.html` in a browser (`file://`).
-2. Walk through the 11 steps: Metadata, layers 01 Business – 07 Resource,
-   Delivery, **Topologie & Git** (binary-mirror root, GitHub org/repo/private,
+1. Open `struktura-wizard.html` in a browser (`file://`). Choose one of two ways to fill it in:
+   - **Rychlý import:** click **"Stáhnout šablonu"** in the sidebar to download a blank
+     `.md` template, fill it in any text editor, then load it back via **"Import .md"**
+     or by dragging the file onto the page. The template round-trips all three roots
+     (project/execution/assets) and the GitHub fields, and a filled template drops you
+     straight onto the output step.
+   - **Krok za krokem:** fill the 11-step form directly in the browser.
+2. The 11 steps: Metadata, layers 01 Business – 07 Resource, Delivery,
+   **Topologie & Git** (binary-mirror root, GitHub org/repo/private,
    branch-ruleset first name), and finally Výstup (Output).
 3. On the output step, switch between the **Strom** (tree preview) tab and the
    **Claude Code Prompt** tab. Copy the prompt and paste it into Claude Code.
