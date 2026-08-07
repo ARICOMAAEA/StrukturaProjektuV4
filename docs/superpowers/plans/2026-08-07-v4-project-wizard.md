@@ -824,7 +824,13 @@ test('branch protection prijde az PO prvnim pushi', async () => {
   const w = await loadWizard();
   fullMetadata(w);
   const p = w.generateClaudePrompt();
-  assert.ok(p.indexOf('gh repo create') < p.indexOf('branch protection'),
+  // POZOR: indexOf vraci -1 pri nenalezeni, takze `-1 < kladne` by proslo i tehdy,
+  // kdyby `gh repo create` z promptu uplne zmizel. Oba vyskyty proto pinujeme zvlast.
+  const create = p.indexOf('gh repo create');
+  const protect = p.toLowerCase().indexOf('branch protection');
+  assert.ok(create > -1, 'prompt musi obsahovat gh repo create');
+  assert.ok(protect > -1, 'prompt musi obsahovat branch protection');
+  assert.ok(create < protect,
     'protection se nesmi zapinat pred prvnim pushem — na prazdny main by push neprosel');
 });
 
@@ -918,12 +924,6 @@ V \`00_PROJECT_CONTROL\\08_DEV\\\` vytvor \`repos.json\` s prazdnym seznamem rep
 DULEZITE: \`repos.json\` cte PowerShell 5.1 — uloz ho jako **UTF-8 s BOM**. Bez BOM ho PS 5.1
 precte pres ANSI codepage a rozbije diakritiku. Totez plati pro vsechny generovane \`.md\`.
 
-Pote vygeneruj \`REPOS.md\`:
-\`\`\`powershell
-powershell -File "${pRoot}\\scripts\\Generate-ReposMd.ps1"
-\`\`\`
-(prazdny manifest = prazdna tabulka, to je spravne — aplikace se pridavaji az pozdeji)
-
 ## FAZE 3 — V4 nadstavba
 Zkopiruj sablony ze slozky nastroje **${toolRoot}\\assets\\** do ${pRoot}:
 
@@ -943,6 +943,12 @@ Skripty kopiruj **beze zmeny** — jsou plne manifest-driven. V \`.github\\CODEO
 a \`.github\\CONTRIBUTING.md\` nahrad zastupny symbol \`{{BRANCH_OWNER}}\` hodnotou \`${m.branchOwner}\`.
 Dale vytvor \`_local\\.gitkeep\` (prazdny) a \`CHANGELOG.md\` se zaznamem verze \`1.0.0\` dle Keep a Changelog.
 
+Teprve ted, kdyz \`Generate-ReposMd.ps1\` uz existuje na disku, vygeneruj \`REPOS.md\`:
+\`\`\`powershell
+powershell -File "${pRoot}\\scripts\\Generate-ReposMd.ps1"
+\`\`\`
+(prazdny manifest = prazdna tabulka, to je spravne — aplikace se pridavaji az pozdeji)
+
 ## FAZE 4 — Git a prvni commit
 \`\`\`bash
 cd "${pRoot}"
@@ -957,7 +963,7 @@ ZEPTEJ SE UZIVATELE, nez cokoliv spustis. Vypis mu presne tyto prikazy:
 \`\`\`bash
 gh repo create ${repoFull} ${visibility} --source="${pRoot}" --remote=origin --push
 \`\`\`
-Toto zaklada repozitar v organizaci — preklep v nazvu vytvori zavejecnou repo, kterou pak nekdo musi uklidit.
+Toto zaklada repozitar v organizaci — preklep v nazvu vytvori nechtenou repo, kterou pak nekdo musi uklidit.
 
 ## FAZE 6 — [POTVRZENI] Branch protection a ruleset
 Teprve ted, kdyz \`main\` uz existuje a neni prazdny. ZEPTEJ SE UZIVATELE.
