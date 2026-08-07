@@ -146,8 +146,13 @@ const defaultState = {
     fullName: '',
     date: new Date().toISOString().slice(0, 10),
     mode: 'C',
-    knowledgeBase: 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude',
+    projectBase: 'C:\\PROJECT',
     executionBase: 'C:\\DEV\\Claude',
+    assetsBase: '',
+    githubOrg: 'ARICOMAAEA',
+    repoName: '',
+    repoPrivate: true,
+    branchOwner: '',
   },
   business: {
     vision: '',
@@ -300,14 +305,37 @@ function sanitizeBase(base, projectType, customer) {
   return base;
 }
 
-function getKnowledgeRoot() {
+function getProjectRoot() {
   const pid = getProjectId();
-  const rawBase = state.metadata.knowledgeBase || 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude';
+  const rawBase = state.metadata.projectBase || 'C:\\PROJECT';
   const base = sanitizeBase(rawBase, state.metadata.projectType, state.metadata.customer);
   if (state.metadata.projectType === 'ZAK' && state.metadata.customer) {
-    return `${base}\\Zakaznici\\${state.metadata.customer}\\${pid}`;
+    return `${base}\\ZAKAZNICI\\${state.metadata.customer}\\${pid}`;
   }
-  return `${base}\\Interni\\${pid}`;
+  return `${base}\\INTERNI\\${pid}`;
+}
+
+/** Binarni mirror. Cesta se NIKDY nedopocitava z nazvu zakaznika — na OneDrive
+ *  existuji dva ruzne zakaznicke rooty (viz spec par. 4.2). Uzivatel zada koren
+ *  explicitne; tato funkce k nemu jen doplni zakaznika a PROJECT_ID. */
+function getAssetsRoot() {
+  const raw = (state.metadata.assetsBase || '').trim();
+  if (!raw) return '';
+  const base = raw.replace(/[\\/]+$/, '');
+  const pid = getProjectId();
+  if (state.metadata.projectType === 'ZAK' && state.metadata.customer) {
+    return `${base}\\${state.metadata.customer}\\${pid}`;
+  }
+  return `${base}\\${pid}`;
+}
+
+function getRepoName() {
+  if (state.metadata.repoName && state.metadata.repoName.trim()) return state.metadata.repoName.trim();
+  const pid = getProjectId();
+  if (state.metadata.projectType === 'ZAK' && state.metadata.customer) {
+    return `${state.metadata.customer}_${pid}`;
+  }
+  return pid;
 }
 
 function getExecutionRoot() {
@@ -430,16 +458,16 @@ function renderStep0() {
   );
 
   html += card(
-    inputField('Knowledge base', m.knowledgeBase, "state.metadata.knowledgeBase=this.value;saveState();updatePreview();", { placeholder: 'C:\\Users\\...\\9999Claude', helpText: 'Korenova cesta BEZ podslozky Interni/Zakaznici — ta se doplni automaticky. Pokud ji zadate, bude odstranena.' }) +
+    inputField('Project base', m.projectBase, "state.metadata.projectBase=this.value;saveState();updatePreview();", { placeholder: 'C:\\PROJECT', helpText: 'Korenova cesta BEZ segmentu ZAKAZNICI/INTERNI — ten se doplni automaticky.' }) +
     inputField('Execution base', m.executionBase, "state.metadata.executionBase=this.value;saveState();updatePreview();", { placeholder: 'C:\\DEV\\Claude', helpText: 'Korenova cesta BEZ podslozky Interni/Zakaznici — ta se doplni automaticky. Pokud ji zadate, bude odstranena.' })
   );
 
   // Derived paths
   html += `<div class="bg-zinc-50 border border-zinc-200 rounded-lg p-4 text-xs font-mono">
     <div class="mb-2"><span class="text-zinc-500">PROJECT_ID:</span> <span class="text-zinc-800 font-semibold">${escHtml(getProjectId())}</span></div>
-    <div class="mb-2"><span class="text-zinc-500">KNOWLEDGE:</span> <span class="text-zinc-700">${escHtml(getKnowledgeRoot())}</span></div>
+    <div class="mb-2"><span class="text-zinc-500">PROJECT:</span> <span class="text-zinc-700">${escHtml(getProjectRoot())}</span></div>
     <div class="mb-2"><span class="text-zinc-500">EXECUTION:</span> <span class="text-zinc-700">${escHtml(getExecutionRoot())}</span></div>
-    <div><span class="text-zinc-500">CONTEXT junction:</span> <span class="text-zinc-700">${escHtml(getExecutionRoot())}\\CONTEXT</span> <span class="text-zinc-400">\u2192</span> <span class="text-zinc-700">${escHtml(getKnowledgeRoot())}</span></div>
+    <div><span class="text-zinc-500">CONTEXT junction:</span> <span class="text-zinc-700">${escHtml(getExecutionRoot())}\\CONTEXT</span> <span class="text-zinc-400">\u2192</span> <span class="text-zinc-700">${escHtml(getProjectRoot())}</span></div>
   </div>`;
 
   return html;
@@ -1022,7 +1050,7 @@ function generateClaudePrompt() {
   const m = state.metadata;
   const b = state.business;
   const pid = getProjectId();
-  const kRoot = getKnowledgeRoot();
+  const kRoot = getProjectRoot();
   const eRoot = getExecutionRoot();
   const today = m.date || new Date().toISOString().slice(0, 10);
   const del = getActiveDelivery();
@@ -1660,7 +1688,7 @@ PROJECT_NAME:    Plny nazev projektu
 DATE:            ${today}
 PROJECT_TYPE:    INT
 CUSTOMER:
-KNOWLEDGE_ROOT:  ${state.metadata.knowledgeBase || 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude'}\\Interni\\${dateShort}_KratkyNazev
+KNOWLEDGE_ROOT:  ${state.metadata.projectBase || 'C:\\PROJECT'}\\Interni\\${dateShort}_KratkyNazev
 EXECUTION_ROOT:  ${state.metadata.executionBase || 'C:\\DEV\\Claude'}\\Interni\\${dateShort}_KratkyNazev
 INITIAL_MODE:    C
 \`\`\`
@@ -2107,7 +2135,7 @@ function parseTemplateMarkdown(text) {
   if (knowledgeRoot) {
     const suffix = knowledgeRoot.match(/\\(?:Interni|Zakaznici)\\.*$/);
     if (suffix) {
-      state.metadata.knowledgeBase = knowledgeRoot.slice(0, -suffix[0].length);
+      state.metadata.projectBase = knowledgeRoot.slice(0, -suffix[0].length);
     }
   }
   if (executionRoot) {
