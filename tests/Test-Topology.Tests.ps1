@@ -68,6 +68,53 @@ Describe 'Test-Topology.ps1' {
         $LASTEXITCODE | Should Be 1
     }
 
+    It 'selze cistě (FAIL radek + GATE NEPROSEL, zadny stack trace), kdyz repoRoot neni git repo' {
+        # --- samostatna fixtura: platny V4 projekt, ale ZAMERNE bez `git init` ---
+        $ngRoot  = Join-Path $env:TEMP ("v4gate_nogit_" + [guid]::NewGuid().ToString('N').Substring(0,8))
+        $ngDev   = Join-Path $ngRoot 'devsrc'
+        $ngAss   = Join-Path $ngRoot 'assetsrc'
+        $ngProj  = Join-Path $ngRoot 'project'
+
+        New-Item -ItemType Directory -Force -Path $ngDev, $ngAss, (Join-Path $ngProj 'scripts'),
+            (Join-Path $ngProj '00_PROJECT_CONTROL\08_DEV'), (Join-Path $ngDev 'apps') | Out-Null
+
+        Copy-Item $script (Join-Path $ngProj 'scripts\Test-Topology.ps1')
+        Copy-Item (Join-Path $here '..\assets\scripts\check-drift.ps1') (Join-Path $ngProj 'scripts\check-drift.ps1')
+        Copy-Item (Join-Path $here '..\assets\git\gitignore') (Join-Path $ngProj '.gitignore')
+
+        $ngManifest = @{
+            project    = 'TEST_projekt_nogit'
+            devRoot    = $ngDev
+            assetsRoot = $ngAss
+            repos      = @()
+        } | ConvertTo-Json -Depth 5
+        [System.IO.File]::WriteAllText(
+            (Join-Path $ngProj '00_PROJECT_CONTROL\08_DEV\repos.json'), $ngManifest,
+            (New-Object System.Text.UTF8Encoding $true))
+
+        # ZAMERNE zadny `git init` — $ngProj neni git repozitar.
+
+        New-Item -ItemType Junction -Path (Join-Path $ngProj '_dev')    -Target $ngDev  | Out-Null
+        New-Item -ItemType Junction -Path (Join-Path $ngProj '_assets') -Target $ngAss  | Out-Null
+        New-Item -ItemType Junction -Path (Join-Path $ngDev 'CONTEXT')  -Target $ngProj | Out-Null
+
+        $ngGate = Join-Path $ngProj 'scripts\Test-Topology.ps1'
+        # -ExpectedRemote (bez -NoGitHub), aby se kontrola 8 skutecne vyhodnotila
+        # (bez zadaneho remote by se jinak preskocila jako SKIP a "neni git repo"
+        # by se vubec neprojevilo na vysledku).
+        $output = & powershell -NoProfile -File $ngGate -ExpectedRemote 'test-org/test-repo' 2>&1 | Out-String
+        $exitCode = $LASTEXITCODE
+
+        foreach ($j in @((Join-Path $ngProj '_dev'), (Join-Path $ngProj '_assets'), (Join-Path $ngDev 'CONTEXT'))) {
+            if (Test-Path -LiteralPath $j) { [System.IO.Directory]::Delete($j, $false) }
+        }
+        Remove-Item -Recurse -Force $ngRoot -ErrorAction SilentlyContinue
+
+        $exitCode | Should Be 1
+        $output | Should Match 'HEALTH-CHECK'
+        $output | Should Match 'GATE NEPROSEL'
+    }
+
     # --- uklid: junctiony jen jako link, nikdy ne cil ---
     foreach ($j in @((Join-Path $proj '_dev'), (Join-Path $proj '_assets'), (Join-Path $devDir 'CONTEXT'))) {
         if (Test-Path -LiteralPath $j) { [System.IO.Directory]::Delete($j, $false) }

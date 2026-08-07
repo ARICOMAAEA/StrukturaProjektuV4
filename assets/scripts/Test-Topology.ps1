@@ -99,7 +99,7 @@ Add-Check 'Junction CONTEXT' ($ctxLink -eq $repoRoot.TrimEnd('\')) $(
 # --- 6) Zadna trackovana binarka ---
 Push-Location $repoRoot
 try {
-    $tracked = @(& git ls-files 2>$null)
+    $tracked = @(try { @(& git ls-files 2>$null) } catch { @() })
     $bin = @($tracked | Where-Object { $_ -match '\.(mp4|xlsx|vsdx|pdf|png|jpg|jpeg|pptx|lnk)$' })
 } finally { Pop-Location }
 Add-Check 'Zadna binarka v gitu' ($bin.Count -eq 0) $(
@@ -120,8 +120,8 @@ if (-not (Test-Path -LiteralPath $giPath)) {
 # --- 8) Git repo, commit, remote ---
 Push-Location $repoRoot
 try {
-    $isRepo    = (& git rev-parse --is-inside-work-tree 2>$null) -eq 'true'
-    $commits   = if ($isRepo) { @(& git rev-list --count HEAD 2>$null)[0] } else { '0' }
+    $isRepo    = try { (& git rev-parse --is-inside-work-tree 2>$null) -eq 'true' } catch { $false }
+    $commits   = if ($isRepo) { try { @(& git rev-list --count HEAD 2>$null)[0] } catch { '0' } } else { '0' }
     $originUrl = if ($isRepo) { try { (& git remote get-url origin 2>$null) } catch { $null } } else { $null }
 } finally { Pop-Location }
 
