@@ -1,0 +1,33 @@
+# Junctiony — vytvari bootstrap.ps1, nikdy neverzovat
+_dev/
+_assets/
+
+# Git worktree pracovni adresare (viz .github/CONTRIBUTING.md).
+# Musi tu byt od prvniho commitu — jinak `git add .` z hlavniho checkoutu
+# commitne rozbity gitlink.
+.claude/worktrees/
+
+# Lokalni pracovni slozka — prompty, poznamky, docasne soubory
+_local/*
+!_local/.gitkeep
+
+# Stroj-specificka konfigurace Claude Code (absolutni cesty, permissions)
+.claude/settings.local.json
+
+# OS / editor
+desktop.ini
+Thumbs.db
+.DS_Store
+*.tmp
+*~
+.obsidian/
+
+# Binarky nikdy do gitu — zijou v _assets/ na OneDrive
+*.mp4
+*.xlsx
+*.vsdx
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.pptx

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meta Framework V3 — Project Wizard</title>
+  <title>Meta Framework V4 — Project Wizard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -66,7 +66,7 @@
     <!-- Sidebar -->
     <aside id="sidebar" class="w-64 bg-white border-r border-zinc-200 flex-shrink-0 flex flex-col">
       <div class="p-5 border-b border-zinc-200">
-        <h1 class="text-base font-bold text-zinc-900">Meta Framework V3</h1>
+        <h1 class="text-base font-bold text-zinc-900">Meta Framework V4</h1>
         <p class="text-xs text-zinc-500 mt-1">Project Structure Wizard</p>
         <div class="flex gap-2 mt-3">
           <button onclick="el('importFile').click()" class="flex-1 px-2 py-2 text-xs font-medium border border-dashed border-zinc-300 rounded-md hover:bg-zinc-50 hover:border-primary-400 transition-colors text-zinc-600 flex items-center justify-center gap-1">
@@ -98,7 +98,7 @@
           <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           Reset wizard
         </button>
-        <div class="text-center text-xs text-zinc-400 mt-2">V3.0</div>
+        <div class="text-center text-xs text-zinc-400 mt-2">V4.0</div>
       </div>
     </aside>
 
@@ -146,8 +146,13 @@ const defaultState = {
     fullName: '',
     date: new Date().toISOString().slice(0, 10),
     mode: 'C',
-    knowledgeBase: 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude',
+    projectBase: 'C:\\PROJECT',
     executionBase: 'C:\\DEV\\Claude',
+    assetsBase: '',
+    githubOrg: 'ARICOMAAEA',
+    repoName: '',
+    repoPrivate: true,
+    branchOwner: '',
   },
   business: {
     vision: '',
@@ -267,6 +272,7 @@ const steps = [
   { id: 'data', label: '06 Data', icon: '6' },
   { id: 'resource', label: '07 Resource', icon: '7' },
   { id: 'delivery', label: 'Delivery', icon: 'D' },
+  { id: 'topology', label: 'Topologie & Git', icon: 'G' },
   { id: 'output', label: 'Vystup', icon: '!' },
 ];
 
@@ -300,14 +306,37 @@ function sanitizeBase(base, projectType, customer) {
   return base;
 }
 
-function getKnowledgeRoot() {
+function getProjectRoot() {
   const pid = getProjectId();
-  const rawBase = state.metadata.knowledgeBase || 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude';
+  const rawBase = state.metadata.projectBase || 'C:\\PROJECT';
   const base = sanitizeBase(rawBase, state.metadata.projectType, state.metadata.customer);
   if (state.metadata.projectType === 'ZAK' && state.metadata.customer) {
-    return `${base}\\Zakaznici\\${state.metadata.customer}\\${pid}`;
+    return `${base}\\ZAKAZNICI\\${state.metadata.customer}\\${pid}`;
   }
-  return `${base}\\Interni\\${pid}`;
+  return `${base}\\INTERNI\\${pid}`;
+}
+
+/** Binarni mirror. Cesta se NIKDY nedopocitava z nazvu zakaznika — na OneDrive
+ *  existuji dva ruzne zakaznicke rooty (viz spec par. 4.2). Uzivatel zada koren
+ *  explicitne; tato funkce k nemu jen doplni zakaznika a PROJECT_ID. */
+function getAssetsRoot() {
+  const raw = (state.metadata.assetsBase || '').trim();
+  if (!raw) return '';
+  const base = raw.replace(/[\\/]+$/, '');
+  const pid = getProjectId();
+  if (state.metadata.projectType === 'ZAK' && state.metadata.customer) {
+    return `${base}\\${state.metadata.customer}\\${pid}`;
+  }
+  return `${base}\\${pid}`;
+}
+
+function getRepoName() {
+  if (state.metadata.repoName && state.metadata.repoName.trim()) return state.metadata.repoName.trim();
+  const pid = getProjectId();
+  if (state.metadata.projectType === 'ZAK' && state.metadata.customer) {
+    return `${state.metadata.customer}_${pid}`;
+  }
+  return pid;
 }
 
 function getExecutionRoot() {
@@ -430,16 +459,16 @@ function renderStep0() {
   );
 
   html += card(
-    inputField('Knowledge base', m.knowledgeBase, "state.metadata.knowledgeBase=this.value;saveState();updatePreview();", { placeholder: 'C:\\Users\\...\\9999Claude', helpText: 'Korenova cesta BEZ podslozky Interni/Zakaznici — ta se doplni automaticky. Pokud ji zadate, bude odstranena.' }) +
+    inputField('Project base', m.projectBase, "state.metadata.projectBase=this.value;saveState();updatePreview();", { placeholder: 'C:\\PROJECT', helpText: 'Korenova cesta BEZ segmentu ZAKAZNICI/INTERNI — ten se doplni automaticky.' }) +
     inputField('Execution base', m.executionBase, "state.metadata.executionBase=this.value;saveState();updatePreview();", { placeholder: 'C:\\DEV\\Claude', helpText: 'Korenova cesta BEZ podslozky Interni/Zakaznici — ta se doplni automaticky. Pokud ji zadate, bude odstranena.' })
   );
 
   // Derived paths
   html += `<div class="bg-zinc-50 border border-zinc-200 rounded-lg p-4 text-xs font-mono">
     <div class="mb-2"><span class="text-zinc-500">PROJECT_ID:</span> <span class="text-zinc-800 font-semibold">${escHtml(getProjectId())}</span></div>
-    <div class="mb-2"><span class="text-zinc-500">KNOWLEDGE:</span> <span class="text-zinc-700">${escHtml(getKnowledgeRoot())}</span></div>
+    <div class="mb-2"><span class="text-zinc-500">PROJECT:</span> <span class="text-zinc-700">${escHtml(getProjectRoot())}</span></div>
     <div class="mb-2"><span class="text-zinc-500">EXECUTION:</span> <span class="text-zinc-700">${escHtml(getExecutionRoot())}</span></div>
-    <div><span class="text-zinc-500">CONTEXT junction:</span> <span class="text-zinc-700">${escHtml(getExecutionRoot())}\\CONTEXT</span> <span class="text-zinc-400">\u2192</span> <span class="text-zinc-700">${escHtml(getKnowledgeRoot())}</span></div>
+    <div><span class="text-zinc-500">CONTEXT junction:</span> <span class="text-zinc-700">${escHtml(getExecutionRoot())}\\CONTEXT</span> <span class="text-zinc-400">\u2192</span> <span class="text-zinc-700">${escHtml(getProjectRoot())}</span></div>
   </div>`;
 
   return html;
@@ -728,6 +757,62 @@ function renderStep8() {
   return html;
 }
 
+const ASSETS_ROOT_PRESETS = [
+  { value: 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\Zakaznici',
+    label: '9999Claude\\Zakaznici (Alika, ARICOMA, HEINEKEN, LINET, Promet, QUICK, Schwan)' },
+  { value: 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\SAP Service - Projekty\\Zakaznici',
+    label: '9999Claude\\SAP Service - Projekty\\Zakaznici (KOFOLA a dalsi SAP Service)' },
+  { value: 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude\\Interni',
+    label: '9999Claude\\Interni (interni projekty)' },
+];
+
+function setAssetsPreset(i) {
+  state.metadata.assetsBase = ASSETS_ROOT_PRESETS[i].value;
+  saveState();
+  render();
+}
+
+function renderStepTopology() {
+  const m = state.metadata;
+  let html = sectionHeader('Topologie & Git',
+    'Tri fyzicka mista projektu a nastaveni GitHub repozitare. Cesta k binarnimu mirroru se NEDOPOCITAVA — musi byt zadana explicitne.');
+
+  const presetButtons = ASSETS_ROOT_PRESETS.map((p, i) => `
+    <button onclick="setAssetsPreset(${i})"
+      class="w-full text-left px-3 py-2 text-xs border rounded-md mb-1.5 transition-colors ${m.assetsBase === p.value ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-zinc-200 hover:bg-zinc-50'}">
+      ${escHtml(p.label)}
+    </button>`).join('');
+
+  html += card(
+    `<label class="block text-sm font-medium text-zinc-700 mb-2">Koren binarniho mirroru (assets)<span class="text-red-500 ml-0.5">*</span></label>
+     <p class="text-xs text-zinc-500 mb-2">Na OneDrive existuji dva ruzne zakaznicke rooty. Vyber ten spravny — dopocitat se neda.</p>
+     ${presetButtons}` +
+    inputField('…nebo vlastni cesta', m.assetsBase,
+      "state.metadata.assetsBase=this.value;saveState();updatePreview();",
+      { placeholder: 'C:\\Users\\licka\\ARICOMA\\<Teams kanal> - General', helpText: 'Bez zakaznika a bez PROJECT_ID — ty se doplni automaticky.' })
+  );
+
+  html += card(
+    inputField('GitHub organizace', m.githubOrg, "state.metadata.githubOrg=this.value;saveState();updatePreview();", { placeholder: 'ARICOMAAEA' }) +
+    inputField('Nazev repozitare', m.repoName, "state.metadata.repoName=this.value;saveState();updatePreview();", { placeholder: getRepoName(), helpText: 'Prazdne = odvodi se automaticky (viz nahled nize).' }) +
+    `<label class="flex items-center gap-2 mb-4 cursor-pointer">
+       <input type="checkbox" ${m.repoPrivate ? 'checked' : ''} onchange="state.metadata.repoPrivate=this.checked;saveState();updatePreview();" class="rounded text-primary-600 focus:ring-primary-500">
+       <span class="text-sm text-zinc-700">Private repozitar</span>
+     </label>` +
+    inputField('Jmeno pro branch ruleset', m.branchOwner, "state.metadata.branchOwner=this.value;saveState();updatePreview();", { placeholder: 'vojta', helpText: 'Vetve pak musi mit tvar <jmeno>/<co-dela>, napr. vojta/br-115-analyza.', required: true })
+  );
+
+  const assets = getAssetsRoot();
+  html += `<div class="bg-zinc-50 border border-zinc-200 rounded-lg p-4 text-xs font-mono">
+    <div class="mb-2"><span class="text-zinc-500">PROJECT:</span> <span class="text-zinc-700">${escHtml(getProjectRoot())}</span></div>
+    <div class="mb-2"><span class="text-zinc-500">EXECUTION:</span> <span class="text-zinc-700">${escHtml(getExecutionRoot())}</span></div>
+    <div class="mb-2"><span class="text-zinc-500">ASSETS:</span> ${assets ? `<span class="text-zinc-700">${escHtml(assets)}</span>` : '<span class="text-red-600">NEZADANO — povinne</span>'}</div>
+    <div><span class="text-zinc-500">GITHUB:</span> <span class="text-zinc-700">${escHtml(m.githubOrg || 'ARICOMAAEA')}/${escHtml(getRepoName())}</span> <span class="text-zinc-400">${m.repoPrivate ? '(private)' : '(public)'}</span></div>
+  </div>`;
+
+  return html;
+}
+
 function renderStep9() {
   let html = sectionHeader('Vystup', 'Vygenerovany vystup. Zkopirujte prompt.');
 
@@ -870,7 +955,8 @@ function buildTree() {
   ];
   pc.children.push({ name: '07_RESOURCE', type: 'dir', children: resChildren });
   pc.children.push({ name: '08_DEV', type: 'dir', children: [
-    { name: 'ExecutionLayer.lnk', type: 'file' },
+    { name: 'repos.json', type: 'file' },
+    { name: 'REPOS.md', type: 'file' },
     { name: 'README.md', type: 'file' },
   ]});
   pc.children.push({ name: 'README.md', type: 'file' });
@@ -961,8 +1047,27 @@ function buildTree() {
   // 99_ARCHIVE
   tree.children.push({ name: '99_ARCHIVE', type: 'dir', children: [] });
 
+  // V4 — git a nadstavba projektove vrstvy
+  tree.children.push({ name: '.github', type: 'dir', children: [
+    { name: 'CODEOWNERS', type: 'file' },
+    { name: 'CONTRIBUTING.md', type: 'file' },
+    { name: 'PULL_REQUEST_TEMPLATE.md', type: 'file' },
+  ]});
+  tree.children.push({ name: 'scripts', type: 'dir', children: [
+    { name: 'bootstrap.ps1', type: 'file' },
+    { name: 'check-drift.ps1', type: 'file' },
+    { name: 'Generate-ReposMd.ps1', type: 'file' },
+    { name: 'Test-Topology.ps1', type: 'file' },
+  ]});
+  tree.children.push({ name: '_dev', type: 'dir', children: [] });
+  tree.children.push({ name: '_assets', type: 'dir', children: [] });
+  tree.children.push({ name: '_local', type: 'dir', children: [] });
+
   // Root files
   tree.children.push({ name: 'README.md', type: 'file' });
+  tree.children.push({ name: '.gitignore', type: 'file' });
+  tree.children.push({ name: '.gitattributes', type: 'file' });
+  tree.children.push({ name: 'CHANGELOG.md', type: 'file' });
   tree.children.push({ name: 'ContextQuick.md', type: 'file' });
   tree.children.push({ name: 'CLAUDE.md', type: 'file' });
   tree.children.push({ name: 'PROJECT_STATUS.md', type: 'file' });
@@ -1018,16 +1123,43 @@ function bulletList(arr, fallback) {
   return items.length ? items.map(i => `- ${i}`).join('\n') : fallback || '_Neuvedeno._';
 }
 
+const TOOL_ROOT_FALLBACK = 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\00_TOOLS\\StrukturaProjektuV4';
+
+/** Odvodi absolutni cestu ke slozce nastroje z location (bezi pres file://).
+ *  Kdyz to nejde, vrati fallback — a volajici to viditelne oznami. */
+function getToolRoot() {
+  try {
+    const p = decodeURIComponent(location.pathname).replace(/^\//, '').replace(/\//g, '\\');
+    const dir = p.slice(0, p.lastIndexOf('\\'));
+    if (dir && /:\\/.test(dir)) return dir;
+  } catch (e) { /* file:// neni k dispozici (testy, http) */ }
+  return TOOL_ROOT_FALLBACK;
+}
+
 function generateClaudePrompt() {
   const m = state.metadata;
   const b = state.business;
   const pid = getProjectId();
-  const kRoot = getKnowledgeRoot();
+  const pRoot = getProjectRoot();
   const eRoot = getExecutionRoot();
+  const aRoot = getAssetsRoot();
+  const repoFull = `${m.githubOrg || 'ARICOMAAEA'}/${getRepoName()}`;
   const today = m.date || new Date().toISOString().slice(0, 10);
   const del = getActiveDelivery();
 
-  let prompt = `Vytvor kompletni projektovou strukturu Meta Framework V3 pro projekt "${m.fullName || pid}".
+  // Bez explicitniho assetsRoot je prompt nepouzitelny (junction _assets by mirilo nikam)
+  // a nesmi se tvarit jako hotovy. Viz spec par. 4.2 — cesta se nedopocitava.
+  // Stejne tak bez branchOwner (jmeno pro branch ruleset — spec ho oznacuje jako povinne)
+  // by CONTRIBUTING.md skoncil s prazdnym prikladem jmena a FAZE 6 nemela co ilustrovat.
+  const missingInputs = [];
+  if (!getAssetsRoot()) missingInputs.push('koren binarniho mirroru (krok "Topologie & Git")');
+  if (!m.branchOwner) missingInputs.push('jmeno pro branch ruleset (krok "Topologie & Git")');
+  const guard = missingInputs.length === 0
+    ? ''
+    : `!! NEDOKONCENY VSTUP — ve wizardu neni vyplneno: ${missingInputs.join(', ')}.\n` +
+      '!! NESPOUSTEJ tento prompt. Vrat se do wizardu, dopln chybejici udaje a zkopiruj prompt znovu.\n\n';
+
+  let prompt = `${guard}Zaloz novy projekt "${m.fullName || pid}" v topologii V4 (Meta Framework).
 
 ## Metadata
 - PROJECT_ID: ${pid}
@@ -1035,10 +1167,13 @@ function generateClaudePrompt() {
 - DATE: ${today}
 - PROJECT_TYPE: ${m.projectType}${m.projectType === 'ZAK' ? `\n- CUSTOMER: ${m.customer}` : ''}
 - INITIAL_MODE: ${m.mode}
-- KNOWLEDGE_ROOT: ${kRoot}
+- PROJECT_ROOT:   ${pRoot}
 - EXECUTION_ROOT: ${eRoot}
+- ASSETS_ROOT:    ${aRoot}
+- GITHUB_REPO:    ${repoFull}${m.repoPrivate ? ' (private)' : ' (public)'}
+- BRANCH_OWNER:   ${m.branchOwner}
 
-## Knowledge Layer: ${kRoot}
+## Projektova vrstva: ${pRoot}
 
 ### Adresarova struktura
 Vytvor nasledujici slozky:
@@ -1149,7 +1284,7 @@ ${state.delivery.preset !== 'Minimal' ? `| \`ID_REGISTRY.md\` | Lookup table pro
 | \`00_PROJECT_CONTROL/05_PLAN/\` | KDY (When) | \`PLAN.md\` |
 | \`00_PROJECT_CONTROL/06_DATA/\` | Fakta | \`DATA.md\` |
 | \`00_PROJECT_CONTROL/07_RESOURCE/\` | Vstupy | \`RESOURCE.md\` |
-| \`00_PROJECT_CONTROL/08_DEV/\` | Bridge | \`ExecutionLayer.lnk\` |
+| \`00_PROJECT_CONTROL/08_DEV/\` | Manifest dev repozitaru | \`repos.json\` + generovany \`REPOS.md\` |
 \`\`\`
 
 #### ContextQuick.md (root)
@@ -1172,7 +1307,7 @@ ${state.delivery.preset !== 'Minimal' ? `| \`ID_REGISTRY.md\` | Lookup table pro
       05_PLAN/             KDY (WHEN) — faze, milniky
       06_DATA/             Fakta — vystupy analyz
       07_RESOURCE/         Vstupy — manualy, prompty, vazby
-      08_DEV/              Most na execution layer (ExecutionLayer.lnk)
+      08_DEV/              Manifest dev repozitaru (repos.json + REPOS.md)
 
     10_DELIVERY/                                 [realizace a dodavka]
       11_MEETINGS/         zapisy z jednani (YYYY-MM-DD_nazev)
@@ -1561,7 +1696,7 @@ Pro KAZDOU strukturalni slozku vytvor README.md typu folder-description: 00_PROJ
 created: ${today}
 author: ${m.fullName || pid}
 origin_type: template
-origin_source: Meta Framework V3 init
+origin_source: Meta Framework V4 init
 purpose: Popis ucelu slozky <NAZEV>
 tags: [folder-description, readme]
 status: active
@@ -1582,642 +1717,155 @@ status: active
 <pravidlo zmeny>
 \`\`\`
 
-Vyznam vrstev pro obsah README: 01_BUSINESS = PROC (Why); 02_KNOWLEDGE = CO (What); 03_ARCHITECTURE = JAK (How), ADR append-only; 04_ENGINEERING = CIM (With what); 05_PLAN = KDY (When); 06_DATA = Fakta (fakt vs. interpretace); 07_RESOURCE = externi vstupy (nejsou zavazna pravidla); 08_DEV = most do execution layer (zadny spustitelny kod). 10_DELIVERY = operativni dorucovaci vrstva (caste zmeny). 20_SHARED_REFERENCE = sablony / standardy / naming konvence.
+Vyznam vrstev pro obsah README: 01_BUSINESS = PROC (Why); 02_KNOWLEDGE = CO (What); 03_ARCHITECTURE = JAK (How), ADR append-only; 04_ENGINEERING = CIM (With what); 05_PLAN = KDY (When); 06_DATA = Fakta (fakt vs. interpretace); 07_RESOURCE = externi vstupy (nejsou zavazna pravidla); 08_DEV = manifest dev repozitaru (repos.json je jedina pravda, REPOS.md je generovany). 10_DELIVERY = operativni dorucovaci vrstva (caste zmeny). 20_SHARED_REFERENCE = sablony / standardy / naming konvence.
+`;
 
-## Execution Layer: ${eRoot}
+  const toolRoot = getToolRoot();
+  const visibility = m.repoPrivate ? '--private' : '--public';
 
-### Adresarova struktura
-- apps/
-- .claude/skills/
+  prompt += `
+---
 
-### CONTEXT junction
-Spust v PowerShell:
-\`\`\`powershell
-New-Item -ItemType Junction -Path "${eRoot}\\CONTEXT" -Target "${kRoot}"
+# Postup — 8 fazi
+
+Provadej je v tomto poradi. Fáze oznacene jako potvrzovaci brana jsou navenek pusobici
+a nevratne — pred kazdou z nich se ZEPTEJ uzivatele a vypis presny prikaz, ktery se chysta
+se spustit.
+
+## FAZE 0 — Preflight (nic se nemeni)
+1. \`gh auth status\` — musi byt prihlaseny. Kdyz ne, ZASTAV.
+2. \`git --version\` — musi existovat. Kdyz ne, ZASTAV.
+3. Overit, ze NEEXISTUJE zadna z techto cest:
+   - ${pRoot}
+   - ${eRoot}
+   - ${aRoot}
+   Kdyz kterakoliv existuje, ZASTAV a nahlas ji. Tento nastroj zaklada jen nove projekty.
+
+## FAZE 1 — Tri koreny
+Vytvor prazdne slozky:
+- ${pRoot}
+- ${eRoot}\\apps
+- ${eRoot}\\.claude\\skills
+- ${aRoot}
+
+## FAZE 2 — Obsah projektove vrstvy
+Vytvor strukturu a soubory popsane vyse v ${pRoot}.
+V \`00_PROJECT_CONTROL\\08_DEV\\\` vytvor \`repos.json\` s prazdnym seznamem repozitaru:
+
+\`\`\`json
+{
+  "project": "${getRepoName()}",
+  "devRoot": "${eRoot.replace(/\\/g, '\\\\')}",
+  "assetsRoot": "${aRoot.replace(/\\/g, '\\\\')}",
+  "repos": []
+}
 \`\`\`
 
-### 08_DEV shortcut
-Vytvor zastupce \`${kRoot}\\00_PROJECT_CONTROL\\08_DEV\\ExecutionLayer.lnk\` ukazujici na \`${eRoot}\`.
+DULEZITE: \`repos.json\` cte PowerShell 5.1 — uloz ho jako **UTF-8 s BOM**. Bez BOM ho PS 5.1
+precte pres ANSI codepage a rozbije diakritiku. Totez plati pro vsechny generovane \`.md\`.
+
+## FAZE 3 — V4 nadstavba
+Zkopiruj sablony ze slozky nastroje **${toolRoot}\\assets\\** do ${pRoot}:
+
+| Zdroj | Cil |
+|---|---|
+| \`assets\\scripts\\bootstrap.ps1\` | \`scripts\\bootstrap.ps1\` |
+| \`assets\\scripts\\check-drift.ps1\` | \`scripts\\check-drift.ps1\` |
+| \`assets\\scripts\\Generate-ReposMd.ps1\` | \`scripts\\Generate-ReposMd.ps1\` |
+| \`assets\\scripts\\Test-Topology.ps1\` | \`scripts\\Test-Topology.ps1\` |
+| \`assets\\github\\CODEOWNERS\` | \`.github\\CODEOWNERS\` |
+| \`assets\\github\\CONTRIBUTING.md\` | \`.github\\CONTRIBUTING.md\` |
+| \`assets\\github\\PULL_REQUEST_TEMPLATE.md\` | \`.github\\PULL_REQUEST_TEMPLATE.md\` |
+| \`assets\\git\\gitignore\` | \`.gitignore\` (POZOR: pridat tecku) |
+| \`assets\\git\\gitattributes\` | \`.gitattributes\` (POZOR: pridat tecku) |
+
+Skripty kopiruj **beze zmeny** — jsou plne manifest-driven. Sablony obsahuji TRI ruzne
+zastupne symboly, nezamenuj je: \`{{BRANCH_OWNER}}\` v \`.github\\CONTRIBUTING.md\` nahrad
+hodnotou \`${m.branchOwner}\` (krestni jmeno pro nazvy vetvi, bez \`@\`). \`{{GITHUB_ORG}}\`
+take v \`.github\\CONTRIBUTING.md\` nahrad hodnotou \`${m.githubOrg || 'ARICOMAAEA'}\`
+(GitHub organizace, ve ktere repo vznika). \`@{{GITHUB_OWNER}}\`
+v \`.github\\CODEOWNERS\` je ale GitHub ucet (s \`@\`), ktery wizard nezna — ZEPTEJ SE
+UZIVATELE na jeho GitHub username a vysvetli mu, ze to NENI totez jako \`${m.branchOwner}\`
+a ze ucet musi mit v cilove organizaci alespon \`write\` pristup, jinak GitHub radek v
+CODEOWNERS tise ignoruje. Pokud uzivatel username nezna, zastupny symbol \`{{GITHUB_OWNER}}\`
+v souboru nech beze zmeny a uveď to jako otevrenou polozku k dořešeni, nehadej ho.
+Dale vytvor \`_local\\.gitkeep\` (prazdny) a \`CHANGELOG.md\` se zaznamem verze \`1.0.0\` dle Keep a Changelog.
+
+Pote, kdyz uz je \`Generate-ReposMd.ps1\` na miste, vygeneruj \`REPOS.md\`:
+\`\`\`powershell
+powershell -File "${pRoot}\\scripts\\Generate-ReposMd.ps1"
+\`\`\`
+(prazdny manifest = prazdna tabulka, to je spravne — aplikace se pridavaji az pozdeji)
+
+## FAZE 4 — Git a prvni commit
+\`\`\`bash
+cd "${pRoot}"
+git init -b main
+git add -A
+git commit -m "chore: zalozeni projektu v topologii V4"
+\`\`\`
+Pred commitem overit, ze \`git status --short\` neukazuje zadnou binarku ani \`_dev\`/\`_assets\`.
+
+## FAZE 5 — [POTVRZENI] Zalozeni GitHub repozitare a push
+ZEPTEJ SE UZIVATELE, nez cokoliv spustis. Vypis mu presne tyto prikazy:
+\`\`\`bash
+gh repo create ${repoFull} ${visibility} --source="${pRoot}" --remote=origin --push
+\`\`\`
+Toto zaklada repozitar v organizaci — preklep v nazvu vytvori nechtenou repo v organizaci, kterou pak nekdo musi uklidit.
+
+## FAZE 6 — [POTVRZENI] Branch protection a ruleset
+Teprve ted, kdyz \`main\` uz existuje a neni prazdny. ZEPTEJ SE UZIVATELE.
+\`\`\`bash
+gh api -X PUT repos/${repoFull}/branches/main/protection \\
+  -F required_pull_request_reviews[required_approving_review_count]=0 \\
+  -F enforce_admins=true \\
+  -F required_status_checks=null \\
+  -F restrictions=null
+gh api -X PATCH repos/${repoFull} -F delete_branch_on_merge=true
+\`\`\`
+Pote v repu vytvor ruleset \`personal-branch-naming\`. Vzor je ZAMERNE GENERICKY —
+\`<jmeno>/<co-dela>\` pro libovolne jmeno, ne jen pro \`${m.branchOwner}\`. Topologie
+pocita s vice contributory, ruleset povolujici jen jedno jmeno by je vyradil:
+\`\`\`bash
+gh api repos/${repoFull}/rulesets --method POST --input - <<'EOF'
+{
+  "name": "personal-branch-naming",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": { "include": ["~ALL"], "exclude": ["refs/heads/main"] }
+  },
+  "rules": [
+    {
+      "type": "branch_name_pattern",
+      "parameters": {
+        "operator": "regex",
+        "pattern": "^[a-z0-9-]+/[a-z0-9-]+$",
+        "name": "personal-branch-naming",
+        "negate": false
+      }
+    }
+  ]
+}
+EOF
+\`\`\`
+(\`${m.branchOwner}\` je jen priklad jmena pouzity v \`CONTRIBUTING.md\`, napr. \`${m.branchOwner}/br-001-analyza\` — samotny ruleset ho nevynucuje.)
+
+## FAZE 7 — Junctiony
+\`\`\`powershell
+powershell -File "${pRoot}\\scripts\\bootstrap.ps1"
+\`\`\`
+Vytvori \`_dev\` -> EXECUTION_ROOT, \`_assets\` -> ASSETS_ROOT a reverzni \`CONTEXT\` v execution vrstve.
+Skript nikdy nic nemaze ani neprepisuje — pri nesouladu jen varuje.
+
+## FAZE 8 — Akceptacni brana
+\`\`\`powershell
+powershell -File "${pRoot}\\scripts\\Test-Topology.ps1" -ExpectedRemote "${repoFull}"
+\`\`\`
+Musi vypsat \`GATE PROSEL\`. Kdyz ne, NEHLAS uspech — vypis, ktera kontrola selhala, a zastav.
 `;
 
   return prompt;
-}
-
-function generatePowerShell() {
-  const m = state.metadata;
-  const b = state.business;
-  const pid = getProjectId();
-  const kRoot = getKnowledgeRoot();
-  const eRoot = getExecutionRoot();
-  const today = m.date || new Date().toISOString().slice(0, 10);
-  const del = getActiveDelivery();
-
-  const writeFile = (path, content) => {
-    const escaped = content.replace(/"/g, '`"').replace(/\$/g, '`$');
-    return `[System.IO.File]::WriteAllText("${path}", "${escaped}", [System.Text.Encoding]::UTF8)\nWrite-Ok "${path.split('\\').pop()}"`;
-  };
-
-  let dirs = [
-    '00_PROJECT_CONTROL\\01_BUSINESS',
-    '00_PROJECT_CONTROL\\02_KNOWLEDGE',
-    '00_PROJECT_CONTROL\\03_ARCHITECTURE',
-    '00_PROJECT_CONTROL\\03_ARCHITECTURE\\ADR',
-    '00_PROJECT_CONTROL\\04_ENGINEERING',
-    '00_PROJECT_CONTROL\\05_PLAN',
-    '00_PROJECT_CONTROL\\06_DATA',
-    '00_PROJECT_CONTROL\\07_RESOURCE',
-    '00_PROJECT_CONTROL\\07_RESOURCE\\prompty',
-    '00_PROJECT_CONTROL\\08_DEV',
-    '99_ARCHIVE',
-  ];
-
-  if (state.delivery.preset !== 'Minimal') {
-    if (del.meetings) dirs.push('10_DELIVERY\\11_MEETINGS');
-    if (del.workItems) {
-      ['01_BUSINESS_REQUESTS','02_FUNCTIONAL_SPECS\\_project','02_FUNCTIONAL_SPECS\\app01','03_TECHNICAL_SPECS\\_project','03_TECHNICAL_SPECS\\app01','04_DEV_TASKS','05_CHANGE_REQUESTS','06_OUTPUTS\\DIAGRAMS','06_OUTPUTS\\PRESENTATIONS'].forEach(d => dirs.push(`10_DELIVERY\\12_WORK_ITEMS\\${d}`));
-    }
-    if (del.migration) {
-      ['01_SCOPE','02_OBJECTS','03_MAPPING','04_TEMPLATES','05_MOCK_LOADS','06_RECONCILIATION','07_CUTOVER'].forEach(d => dirs.push(`10_DELIVERY\\13_MIGRATION\\${d}`));
-    }
-    if (del.integration) {
-      ['01_INTERFACE_CATALOG','02_API_SPECS','03_FIELD_MAPPING','04_TEST_EVIDENCE'].forEach(d => dirs.push(`10_DELIVERY\\14_INTEGRATION\\${d}`));
-    }
-    if (del.testing) {
-      ['01_TEST_STRATEGY','02_TEST_CASES','03_TEST_DATA','04_DEFECTS','05_UAT','06_TEST_RUNS'].forEach(d => dirs.push(`10_DELIVERY\\15_TESTING\\${d}`));
-    }
-    if (del.releaseTransport) dirs.push('10_DELIVERY\\16_RELEASE_TRANSPORT');
-    if (del.operations) {
-      ['01_AUTH','02_MONITORING','03_SUPPORT','04_MANUALS'].forEach(d => dirs.push(`10_DELIVERY\\17_OPERATIONS\\${d}`));
-    }
-    dirs.push('20_SHARED_REFERENCE\\21_TEMPLATES');
-    dirs.push('20_SHARED_REFERENCE\\22_STANDARDS');
-    dirs.push('20_SHARED_REFERENCE\\23_NAMING_CONVENTIONS');
-  }
-  // Per-skill / per-agent subdirs under .claude/
-  if (state.engineering.agents.changelog) dirs.push('.claude\\agents\\changelog-manager');
-  if (state.engineering.agents.mdPostprocessor) dirs.push('.claude\\agents\\md-postprocessor');
-  if (state.engineering.agents.souhrnGpt) dirs.push('.claude\\agents\\souhrn-gpt-updater');
-  if (state.engineering.agents.knowledgeBuilder) dirs.push('.claude\\agents\\zvl_knowledge-builder');
-  if (state.engineering.skills.aiMarkdown) dirs.push('.claude\\skills\\ai-readable-markdown');
-  if (state.engineering.skills.keepChangelog) dirs.push('.claude\\skills\\keep-a-changelog-standard');
-  if (state.engineering.skills.endSession) dirs.push('.claude\\skills\\zvl_end-session');
-  if (state.engineering.skills.workItems) dirs.push('.claude\\skills\\zvl_work-items');
-  if (state.engineering.skills.newMeeting) dirs.push('.claude\\skills\\zvl_new-meeting');
-  if (state.engineering.skills.meetingFromTranscript) dirs.push('.claude\\skills\\zvl_meeting-from-transcript');
-
-  const dirsList = dirs.map(d => `    "${d}"`).join(',\n');
-
-  let script = `#Requires -Version 5.1
-<#
-.SYNOPSIS
-    Meta Framework V3 — Inicializace projektu ${pid}
-.DESCRIPTION
-    Automaticky generovany skript. Vytvori knowledge layer, execution layer a CONTEXT junction.
-.NOTES
-    Vygenerovano: ${today}
-    Projekt: ${m.fullName || pid}
-#>
-
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
-
-function Write-Step  { param([string]$msg) Write-Host "\\n  ==> $msg" -ForegroundColor Cyan }
-function Write-Ok    { param([string]$msg) Write-Host "    [OK] $msg" -ForegroundColor Green }
-function Write-Warn  { param([string]$msg) Write-Host "    [!]  $msg" -ForegroundColor Yellow }
-function Write-Fail  { param([string]$msg) Write-Host "    [ERR] $msg" -ForegroundColor Red }
-function Write-FolderReadme {
-    param([string]$rel, [string]$content)
-    $dir = Join-Path $knowledgeRoot $rel
-    New-Item -ItemType Directory -Force -Path $dir | Out-Null
-    [System.IO.File]::WriteAllText((Join-Path $dir "README.md"), $content, [System.Text.Encoding]::UTF8)
-    Write-Ok "$rel/README.md"
-}
-
-try {
-
-$knowledgeRoot = "${kRoot}"
-$executionRoot = "${eRoot}"
-
-Write-Host ""
-Write-Host "  +====================================================+" -ForegroundColor Cyan
-Write-Host "  |       META FRAMEWORK V3 — PROJECT INIT             |" -ForegroundColor Cyan
-Write-Host "  +====================================================+" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  Projekt    : ${pid}"
-Write-Host "  Rezim      : ${m.mode}"
-Write-Host "  Knowledge  : $knowledgeRoot"
-Write-Host "  Execution  : $executionRoot"
-Write-Host ""
-
-$confirm = Read-Host "Pokracovat? [A/n]"
-if ($confirm -and $confirm.Trim().ToUpper() -eq "N") {
-    Write-Warn "Zruseno."
-    exit 0
-}
-
-# ── Krok 1: Adresarova struktura ──────────────────────────────
-Write-Step "Krok 1/5 -- Vytvareni adresarove struktury..."
-
-$dirs = @(
-${dirsList}
-)
-
-foreach ($d in $dirs) {
-    $fullPath = Join-Path $knowledgeRoot $d
-    New-Item -ItemType Directory -Force -Path $fullPath | Out-Null
-    Write-Ok $d
-}
-
-# ── Krok 2: Generovane soubory ────────────────────────────────
-Write-Step "Krok 2/5 -- Generovani souboru..."
-
-# BUSINESS.md
-$businessContent = @"
-# PROC — Business Context
-
-## Vision
-
-${b.vision || '_Vyplnit._'}
-
-## Hodnota / Value
-
-${bulletList(b.value)}
-
-## Scope
-
-### IN (co projekt zahrnuje)
-
-${bulletList(b.scopeIn)}
-
-### OUT (co projekt NEzahrnuje)
-
-${bulletList(b.scopeOut)}
-
-## Omezeni / Constraints
-
-${bulletList(b.constraints)}
-
-## Predpoklady / Assumptions
-
-${bulletList(b.assumptions)}
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "00_PROJECT_CONTROL\\01_BUSINESS\\BUSINESS.md"), $businessContent, [System.Text.Encoding]::UTF8)
-Write-Ok "BUSINESS.md"
-
-# PLAN.md
-$planContent = @"
-# KDY — Plan projektu
-
-## Aktualni faze
-
-| Faze | Nazev | Stav |
-|------|-------|------|
-${state.plan.phases.filter(p => p.name).map((p, i) => `| ${i+1} | ${p.name} | ${p.status} |`).join('\n')}
-
-## Milniky
-
-${bulletList(state.plan.milestones, '_Zatim nejsou definovany._')}
-
-## Rizika
-
-_Zatim nejsou identifikovana._
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "00_PROJECT_CONTROL\\05_PLAN\\PLAN.md"), $planContent, [System.Text.Encoding]::UTF8)
-Write-Ok "PLAN.md"
-
-# DATA.md
-$dataContent = @"
-# Fakta — Data Layer
-
-> Pouze fakticke vystupy analyzy.
-
-## Exporty a mereni
-
-_Zatim zadna data._
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "00_PROJECT_CONTROL\\06_DATA\\DATA.md"), $dataContent, [System.Text.Encoding]::UTF8)
-Write-Ok "DATA.md"
-
-# RESOURCE.md
-$resourceContent = @"
-# Vstupy — Resource Layer
-
-## Externi reference
-
-_Zatim zadne reference._
-
-## Standardy a normy
-
-_Zatim neaplikovano._
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "00_PROJECT_CONTROL\\07_RESOURCE\\RESOURCE.md"), $resourceContent, [System.Text.Encoding]::UTF8)
-Write-Ok "RESOURCE.md"
-
-# PROJECT_STATUS.md
-$statusContent = @"
-# PROJECT_STATUS
-
-## Aktualni stav
-
-- **Rezim**: ${m.mode}
-- **Hlavni zamereni**: ${m.fullName || pid}
-
-## Posledni zmeny
-
-| Datum | Autor | Co bylo udelano |
-|-------|-------|-----------------|
-| ${today} | Inicializace | Zalozeni projektu |
-
-## Co je dalsi
-
-- Doplnit obsah vrstev
-- Definovat milniky
-
-## Blokery
-
-_Zadne._
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "PROJECT_STATUS.md"), $statusContent, [System.Text.Encoding]::UTF8)
-Write-Ok "PROJECT_STATUS.md"
-
-# README.md
-$readmeContent = @"
-# ${pid} — ${m.fullName || pid}
-
-${b.vision || '_Vision nebyla definovana._'}
-
----
-
-## Jak zacit
-
-1. Precti \`\`PROJECT_STATUS.md\`\`
-2. Precti \`\`00_PROJECT_CONTROL/05_PLAN/PLAN.md\`\`
-3. Pokud pracujes s Claude Code, precti \`\`CLAUDE.md\`\`
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "README.md"), $readmeContent, [System.Text.Encoding]::UTF8)
-Write-Ok "README.md"
-
-# Todo.md
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "Todo.md"), "# Todo\n\n> Tento soubor aktualizuje vyhradne uzivatel.\n\n## Otevrene ukoly\n\n_Zadne ukoly zatim._", [System.Text.Encoding]::UTF8)
-Write-Ok "Todo.md"
-
-# souhrnGPT.md
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "souhrnGPT.md"), "# souhrnGPT\n\n> Automaticky generovany. Spust agenta souhrn-gpt-updater.\n\n_Obsah zatim nevygenerovan._", [System.Text.Encoding]::UTF8)
-Write-Ok "souhrnGPT.md"
-
-# PROJECT_HISTORY.md
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "PROJECT_HISTORY.md"), "# PROJECT_HISTORY\n\n> Append-only session archiv. Nejnovejsi nahore.\n\n---\n\n## Session 1 — ${today}\n\n- **Tema**: Inicializace projektu\n- **Autor**: System\n- **Dokonceno**: Zalozeni projektove struktury Meta Framework V3\n", [System.Text.Encoding]::UTF8)
-Write-Ok "PROJECT_HISTORY.md"
-`;
-
-  // ── Folder-description README.md pro kazdou strukturalni slozku (KOFOLA pattern) ──
-  // Kazda slozka dostane README typu folder-description: Ucel / Co sem patri / Co sem nepatri / Kdo smi menit.
-  const frHdr = (purpose) => `---\ncreated: ${today}\nauthor: Meta Framework V3\norigin_type: template\norigin_source: struktura-wizard (Meta Framework V3 init)\npurpose: ${purpose}\ntags: [folder-description, readme]\nstatus: active\n---\n\n`;
-  const fr = (rel, purpose, body) => `\nWrite-FolderReadme "${rel}" @"\n${frHdr(purpose)}${body}\n"@\n`;
-
-  // Core layers — vzdy (i Minimal preset)
-  const coreReadmes = [
-    { rel: '00_PROJECT_CONTROL', purpose: 'Popis ridici a koncepcni vrstvy projektu',
-      body: '# README -- slozka 00_PROJECT_CONTROL\n\n## Ucel\n\nRidici a koncepcni vrstva projektu. Stabilni informace definujici smer projektu: business kontext, architektura, technicke standardy a plan. Neobsahuje operativni obsah kazdodenni prace (ten patri do 10_DELIVERY).\n\n## Vrstvy\n\n| Vrstva | Otazka | Primarni soubor |\n|---|---|---|\n| 01_BUSINESS | PROC (Why) | BUSINESS.md |\n| 02_KNOWLEDGE | CO (What) | KNOWLEDGE.md |\n| 03_ARCHITECTURE | JAK (How) | ARCHITECTURE.md |\n| 04_ENGINEERING | CIM (With what) | ENGINEERING.md |\n| 05_PLAN | KDY (When) | PLAN.md |\n| 06_DATA | Fakta | DATA.md |\n| 07_RESOURCE | Vstupy | RESOURCE.md |\n| 08_DEV | Most na execution layer | ExecutionLayer.lnk |\n\n## Pravidlo aktualizace\n\nSlozka neni urcena pro caste zmeny. Update jen pri zmene projektoveho ramce (scope, architektonicke rozhodnuti, governance pravidlo).' },
-    { rel: '00_PROJECT_CONTROL/01_BUSINESS', purpose: 'Popis BUSINESS vrstvy (PROC)',
-      body: '# BUSINESS\n\n## Ucel\n\nBUSINESS vrstva odpovida na otazku PROC. Odděluje smysl projektu od techniky a architektury.\n\n## Co sem patri\n\n- Vision -- proc projekt existuje\n- Value -- jakou hodnotu vytvari a pro koho\n- Scope -- co je a co neni soucasti projektu\n- Constraints -- business omezeni (cas, zdroje, regulace)\n\n## Co sem nepatri\n\n- Technicka rozhodnuti -> ARCHITECTURE\n- Implementacni pravidla -> ENGINEERING\n- Casove plany -> PLAN\n- Data a mereni -> DATA\n\n## Kdo smi menit\n\nPri zmene smeru projektu. Kazda zasadni zmena (vision, scope) se zaznamenava v PROJECT_HISTORY.md.' },
-    { rel: '00_PROJECT_CONTROL/02_KNOWLEDGE', purpose: 'Popis KNOWLEDGE vrstvy (CO)',
-      body: '# KNOWLEDGE\n\n## Ucel\n\nKNOWLEDGE je "ustava projektu". Definuje system jako celek -- jeho smysl, strukturu, pravidla rizeni a kontrakt s execution layer.\n\n## Co sem patri\n\n- Definice semantickeho modelu (vrstvy a jejich vztahy)\n- Rezimy projektu (Teoreticky / Analyticky / Implementacni)\n- Governance pravidla -- kdo a jak smi menit strukturu\n\n## Co sem nepatri\n\n- Plany a milniky -> PLAN\n- Technicka rozhodnuti -> ARCHITECTURE, ENGINEERING\n- Business smysl -> BUSINESS\n- Data a reporty -> DATA\n\n## Kdo smi menit\n\nZmena KNOWLEDGE = zmena "ustavy", vyzaduje vedome rozhodnuti a zaznam v PROJECT_HISTORY.md.' },
-    { rel: '00_PROJECT_CONTROL/03_ARCHITECTURE', purpose: 'Popis ARCHITECTURE vrstvy (JAK)',
-      body: '# ARCHITECTURE\n\n## Ucel\n\nARCHITECTURE vrstva odpovida na otazku JAK (koncepcne). Odděluje strukturalni navrh od implementace a ridi, co smi na co navazovat.\n\n## Co sem patri\n\n- Structural Layers a Boundary Rules\n- Dependency Model -- co smi na co navazovat\n- ADR (Architectural Decision Records) -- append-only (slozka ADR/)\n\n## Co sem nepatri\n\n- Implementacni kod a nastroje -> ENGINEERING\n- Casove plany -> PLAN\n- Data a vystupy -> DATA\n\n## Kdo smi menit\n\nARCHITECTURE.md pri zmene navrhu (zaznam v PROJECT_HISTORY.md). ADR/ jen pridavanim novych, nikdy prepisem.' },
-    { rel: '00_PROJECT_CONTROL/04_ENGINEERING', purpose: 'Popis ENGINEERING vrstvy (CIM)',
-      body: '# ENGINEERING\n\n## Ucel\n\nENGINEERING vrstva odpovida na otazku CIM. Ridi zpusob realizace -- nastroje, patterns, coding rules a odpovednosti agentu.\n\n## Co sem patri\n\n- Coding Rules -- normativni pravidla vyvoje\n- Pattern Library a Anti-patterns\n- Tooling -- nastroje a jejich konfigurace\n- Agent Responsibilities\n\n## Co sem nepatri\n\n- Architektonicky navrh -> ARCHITECTURE\n- Casove plany -> PLAN\n- Business smysl -> BUSINESS\n\n## Kdo smi menit\n\nZmena pravidel vyzaduje vedome rozhodnuti. Pravidla se ridi ARCHITECTURE -- nesmi je obejit.' },
-    { rel: '00_PROJECT_CONTROL/05_PLAN', purpose: 'Popis PLAN vrstvy (KDY)',
-      body: '# PLAN\n\n## Ucel\n\nPLAN vrstva odpovida na otazku KDY. Dava projektu smer -- faze, milniky, kroky.\n\n## Co sem patri\n\n- Current Phase -- aktualni stav\n- Phases -- faze s milniky\n- Risks -- identifikovana rizika\n\n## Co sem nepatri\n\n- Technicke detaily -> ENGINEERING\n- Architektonicka rozhodnuti -> ARCHITECTURE\n- Konkretni execution tasky -> execution layer\n\n## Kdo smi menit\n\nZivy dokument, aktualizuje se prubezne. Zasadni zmena planu (reset, nova faze) se zaznamenava.' },
-    { rel: '00_PROJECT_CONTROL/06_DATA', purpose: 'Popis DATA vrstvy (Fakta)',
-      body: '# DATA\n\n## Ucel\n\nDATA vrstva uchovava fakta -- exporty, analyzy, merene hodnoty a logy. Odděluje realitu od interpretace.\n\n## Co sem patri\n\n- Exporty z nastroju a systemu\n- Vystupy analyz, dependency reporty, metriky\n\n## Co sem nepatri\n\n- Interpretace dat -> KNOWLEDGE / ARCHITECTURE\n- Rozhodnuti z dat -> ARCHITECTURE (ADR)\n- Business zavery -> BUSINESS\n\n## Klicove pravidlo\n\nFakt vs. interpretace: "Soubor ma 500 radku" je fakt; "je prilis velky" je interpretace a do DATA nepatri.\n\n## Kdo smi menit\n\nData se vkladaji prubezne; existujici se nemazou, ale archivuji nebo oznacuji jako superseded.' },
-    { rel: '00_PROJECT_CONTROL/07_RESOURCE', purpose: 'Popis RESOURCE vrstvy (Vstupy)',
-      body: '# RESOURCE\n\n## Ucel\n\nRESOURCE vrstva uchovava externi vstupy -- normy, dokumentaci, reference, best practices, sablony a podklady. Odděluje nase KNOWLEDGE od cizich zdroju.\n\n## Co sem patri\n\n- Externi standardy a dokumentace nastroju\n- Promptove podklady (slozka prompty/)\n- Odkazy na inspiraci a best practices\n\n## Co sem nepatri\n\n- Nase rozhodnuti -> ARCHITECTURE (ADR)\n- Nase pravidla -> ENGINEERING\n- Interni definice -> KNOWLEDGE\n\n## Klicove pravidlo\n\nRESOURCE nejsou zavazna pravidla. Zavaznymi se stavaji teprve prijetim do ENGINEERING nebo ARCHITECTURE.' },
-    { rel: '00_PROJECT_CONTROL/08_DEV', purpose: 'Popis DEV slozky -- most do execution layer',
-      body: '# 08_DEV -- Most do execution layer\n\n## Ucel\n\nSlozka 08_DEV je bridge mezi knowledge layer (OneDrive) a execution layer (C:\\DEV\\...). Neobsahuje spustitelny kod -- jen odkaz na execution layer.\n\n## Co sem patri\n\n- ExecutionLayer.lnk -- zkratka na execution root\n\n## Co sem nepatri\n\n- Zadny spustitelny artefakt (skripty, app, HTML, binarky) -- ty patri vyhradne do execution layer\n\n## Klicove pravidlo\n\n"Is this runnable?" -> pokud ano, patri do execution layer, ne sem.' },
-  ];
-  coreReadmes.forEach(r => { script += fr(r.rel, r.purpose, r.body); });
-
-  // Discovery layer files (non-Minimal only) — PowerShell
-  if (state.delivery.preset !== 'Minimal') {
-    script += `
-# ID_REGISTRY.md
-$idRegistryContent = @"
-# ID Registry
-
-> Jediny autoritativni lookup table pro vsechna ID v projektu.
-> Posledni aktualizace: ${today}.
-
-## Business Requests (BR)
-
-| ID | Kanonicky soubor | Status | Strucne | Tags |
-|---|---|---|---|---|
-| _Zadne BR zatim._ |
-
-## Functional Specs (FS)
-
-| ID | Kanonicky soubor | Status | Strucne | Tags |
-|---|---|---|---|---|
-| _Zadne FS zatim._ |
-
-## Technical Specs (TS)
-
-| ID | Kanonicky soubor | Status | Strucne | Tags |
-|---|---|---|---|---|
-| _Zadne TS zatim._ |
-
-## Test Cases (TC)
-
-| ID | Kanonicky soubor | Status | Strucne | Tags |
-|---|---|---|---|---|
-| _Zadne TC zatim._ |
-
-## Change Requests (CR)
-
-| ID | Kanonicky soubor | Status | Strucne | Tags |
-|---|---|---|---|---|
-| _Zadne CR zatim._ |
-
-## Dev Tasks (DEV)
-
-| ID | Kanonicky soubor | Status | Strucne | Tags |
-|---|---|---|---|---|
-| _Zadne DEV zatim._ |
-
-## Custom Objects
-
-| ID | Kanonicky soubor | Typ | Strucne |
-|---|---|---|---|
-| _Zadne custom objekty zatim._ |
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "ID_REGISTRY.md"), $idRegistryContent, [System.Text.Encoding]::UTF8)
-Write-Ok "ID_REGISTRY.md"
-
-# TOPIC_MAP.md
-$topicMapContent = @"
-# Topic Map
-
-> Kanonicky zdroj a derived artefakty pro kazde cross-cutting tema.
-> Pri dotazu na tema cti nejdriv kanonicky zdroj, derivovane soubory jen pokud je to potreba.
-> Posledni aktualizace: ${today}.
-
-## Jak pouzivat
-
-Pro kazde tema projektu doplnit:
-- **Canonical:** hlavni soubor s autoritativnim obsahem
-- **Business:** navazane BR/SP tickety
-- **Architektura:** architektonicke analyzy a rozhodnuti
-- **Procesy:** procesni popisy
-- **Integrace:** rozhrani a integracni body
-- **Testy:** navazane test cases
-- **Tags:** klicova slova pro vyhledavani
-
-_Doplnit temata projektu._
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "TOPIC_MAP.md"), $topicMapContent, [System.Text.Encoding]::UTF8)
-Write-Ok "TOPIC_MAP.md"
-
-# GLOSSARY.md
-$glossaryContent = @"
-# Glossary
-
-> Glosar pojmu, zkratek a roli pouzivanych v projektu.
-> Posledni aktualizace: ${today}.
-
-## Projektove pojmy
-
-| Pojem | Vyznam | Kontext |
-|---|---|---|
-| _Doplnit pojmy specificke pro projekt._ |
-
-## Technicke pojmy
-
-| Pojem / Zkratka | Vyznam | Kde se pouziva |
-|---|---|---|
-| BR | Business Request | 12_WORK_ITEMS/01_BUSINESS_REQUESTS/ |
-| SP | Sprint Item | 12_WORK_ITEMS/01_BUSINESS_REQUESTS/ |
-| FS | Functional Spec | 12_WORK_ITEMS/02_FUNCTIONAL_SPECS/ |
-| TS | Technical Spec | 12_WORK_ITEMS/03_TECHNICAL_SPECS/ |
-| DEV | Dev Task | 12_WORK_ITEMS/04_DEV_TASKS/ |
-| CR | Change Request | 12_WORK_ITEMS/05_CHANGE_REQUESTS/ |
-| TC | Test Case | 15_TESTING/02_TEST_CASES/ |
-| ADR | Architectural Decision Record | 03_ARCHITECTURE/ADR/ |
-
-## Custom objekty
-
-| Objekt | Typ | Strucne |
-|---|---|---|
-| _Doplnit custom objekty projektu._ |
-
-## Role a osoby
-
-| Jmeno / Role | Funkce v projektu |
-|---|---|
-| _Doplnit projektove role._ |
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "GLOSSARY.md"), $glossaryContent, [System.Text.Encoding]::UTF8)
-Write-Ok "GLOSSARY.md"
-
-# STALE.md
-$staleContent = @"
-# Stale index entries
-
-> Odkazy v indexech, ktere nesedi s realitou.
-> Claude sem pridava radky kdykoli narazi na nesedici odkaz.
-> Uzivatel schvaluje opravu (mazani nebo update odkazu).
-
-| Kdy zjisteno | Kde | Mrtvy odkaz | Navrhovana akce |
-|---|---|---|---|
-| _Zadne stale odkazy zatim._ |
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "STALE.md"), $staleContent, [System.Text.Encoding]::UTF8)
-Write-Ok "STALE.md"
-
-# 22_STANDARDS/TAGS.md
-$tagsContent = @"
-# Controlled Vocabulary -- Tags
-
-> Zdroj pravdy pro vsechny tagy pouzivane ve frontmatter projektu.
-> Nove tagy pridavej sem s jednovetym popisem.
-
-## Typy artefaktu
-
-| Tag | Popis |
-|---|---|
-| business-request | Business pozadavek (BR) |
-| functional-spec | Funkcni specifikace (FS) |
-| technical-spec | Technicka specifikace (TS) |
-| test-case | Testovaci pripad (TC) |
-| change-request | Change request (CR) |
-| dev-task | Vyvojovy ukol (DEV) |
-| integration | Integracni specifikace |
-| adr | Architectural Decision Record |
-
-## Procesni tagy
-
-| Tag | Popis |
-|---|---|
-| workshop | Workshopovy zapis |
-| integration-test | Integracni testovani |
-| uat | User Acceptance Testing |
-| training | Skoleni |
-| handover | Predani |
-
-## Domenove tagy
-
-_Doplnit tagy specificke pro domenu projektu._
-
-| Tag | Popis |
-|---|---|
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "20_SHARED_REFERENCE\\22_STANDARDS\\TAGS.md"), $tagsContent, [System.Text.Encoding]::UTF8)
-Write-Ok "TAGS.md"
-
-# 23_NAMING_CONVENTIONS/README.md
-$namingContent = @"
-# Naming Conventions
-
-> Konvence pojmenovani souboru a slozek v projektu.
-
-## Work Items
-
-- Business Requests: \`\`BR-NNN_<kebab-case-titulek>.md\`\`
-- Sprint Items: \`\`SP-NNNN_<kebab-case-titulek>.md\`\`
-- Functional Specs: \`\`FS-NNN_<kebab-case-titulek>.md\`\`
-- Technical Specs: \`\`TS-NNN_<kebab-case-titulek>.md\`\`
-- Dev Tasks: \`\`DEV-NNN_<kebab-case-titulek>.md\`\`
-- Change Requests: \`\`CR-NNN_<kebab-case-titulek>.md\`\`
-
-## Test Cases
-
-- \`\`TC-NNN_<feature-slug>.md\`\`
-
-## Meetings
-
-- Slozka: \`\`YYYY-MM-DD_<typ>[-<varianta>]/\`\`
-- Typy: workshop, interni, skoleni, integracni-test, review
-- Uvnitr: \`\`meeting-note.md\`\`, pripadne \`\`transcript/\`\`, \`\`screens/\`\`
-
-## ADR (Architectural Decision Records)
-
-- \`\`NNN-<kebab-case-nazev>.md\`\`
-
-## Integrace
-
-- \`\`<PREFIX>_<tema>.md\`\` (napr. INT_api-sync.md)
-
-## Obecna pravidla
-
-- Nazvy souboru: lowercase, kebab-case, bez mezer a diakritiky
-- ID prefix vzdy velkymi pismeny (BR, SP, TC, ...)
-- Datumy: YYYY-MM-DD format
-"@
-[System.IO.File]::WriteAllText((Join-Path $knowledgeRoot "20_SHARED_REFERENCE\\23_NAMING_CONVENTIONS\\README.md"), $namingContent, [System.Text.Encoding]::UTF8)
-Write-Ok "NAMING_CONVENTIONS/README.md"
-`;
-
-    // Folder-description README.md pro delivery a shared-reference slozky
-    script += fr('20_SHARED_REFERENCE', 'Popis sdilene referencni vrstvy projektu',
-      '# README -- slozka 20_SHARED_REFERENCE\n\n## Ucel\n\nSdilene referencni a normativni materialy projektu -- sablony, standardy a naming konvence pouzivane napric celym projektem.\n\n## Struktura\n\n| Slozka | Obsah |\n|---|---|\n| 21_TEMPLATES | Sablony pro vytvareni novych dokumentu |\n| 22_STANDARDS | Zavazne projektove standardy |\n| 23_NAMING_CONVENTIONS | Konvence pojmenovani souboru a slozek |\n\n## Pravidlo aktualizace\n\nStandardy se zakladaji vzdy pres BR -- ne ad-hoc. Sablony lze doplnovat dle potreby.');
-    script += fr('20_SHARED_REFERENCE/21_TEMPLATES', 'Popis slozky se sablonami dokumentu',
-      '# 21_TEMPLATES -- Sablony dokumentu\n\n## Ucel\n\nSablony pouzivane pri vytvareni novych dokumentu projektu. Zajistuji konzistentni strukturu napric work items i dalsimi artefakty.\n\n## Co sem patri\n\n- Sablony work items (BR / FS / TS / DEV / CR template)\n- Findings template, meeting-note template\n\n## Co sem nepatri\n\n- Vyplnene konkretni dokumenty -> 10_DELIVERY\n- Zavazne standardy -> 22_STANDARDS\n\n## Konvence\n\nKazda sablona konci -template.md a obsahuje povinny YAML origin header, aby ho odvozene soubory zdedily.');
-    script += fr('20_SHARED_REFERENCE/22_STANDARDS', 'Index a popis projektovych standardu',
-      '# 22_STANDARDS -- Projektove standardy\n\n> Slozka pro normativni dokumenty projektu. Kazdy soubor zde je zavazny standard pro vyvojare a AI (Claude).\n\n## Hierarchie standardu (priorita pri konfliktu)\n\n1. Globalni ~/.claude/CLAUDE.md -- NON-NEGOTIABLE rules\n2. 00_PROJECT_CONTROL/04_ENGINEERING/ENGINEERING.md -- project governance\n3. Standardy v teto slozce\n4. Skills -- implementacni patterns\n5. Ostatni docs\n\n## Pravidla pro pridani noveho standardu\n\n1. Standard se zaklada vzdy pres BR -- ne ad-hoc\n2. Soubor MUSI mit YAML frontmatter dle globalniho CLAUDE.md\n3. Tagy ve frontmatteru MUSI byt registrovany v TAGS.md\n4. Po vytvoreni aktualizovat tento README a ID_REGISTRY.md');
-    if (del.meetings) script += fr('10_DELIVERY/11_MEETINGS', 'Popis slozky se zapisy ze schuzek',
-      '# 11_MEETINGS -- Zapisy ze schuzek\n\n## Ucel\n\nVsechny zapisy ze schuzek projektu. Kazda schuzka ma vlastni slozku YYYY-MM-DD_<typ>, uvnitr primarni zapis a pripadne podklady.\n\n## Co sem patri\n\n- Primarni zapisy (meeting-note.md)\n- Transkripty a screenshoty navazane na schuzku\n\n## Co sem nepatri\n\n- Business Requests a work items -> 12_WORK_ITEMS\n- Trvale standardy a rozhodnuti -> 00_PROJECT_CONTROL\n\n## Konvence\n\nTypy: workshop, interni, skoleni, integracni-test, review. Body oznacene (BR) se propisuji do BR-ALL.md.');
-    if (del.workItems) script += fr('10_DELIVERY/12_WORK_ITEMS', 'Popis backlogu pracovnich polozek',
-      '# 12_WORK_ITEMS -- Backlog pracovnich polozek\n\n## Ucel\n\nVsechny pracovni polozky projektu organizovane podle typu -- workflow od business pozadavku po realizaci.\n\n## Struktura\n\n| Slozka | Typ |\n|---|---|\n| 01_BUSINESS_REQUESTS | BR -- cisty textovy business vstup |\n| 02_FUNCTIONAL_SPECS | FS -- funkcni specifikace (multi-app: appNN/ + _project/) |\n| 03_TECHNICAL_SPECS | TS -- technicka specifikace, nese TASKy (multi-app: appNN/ + _project/) |\n| 04_DEV_TASKS | DEV -- dev artefakty / evidence |\n| 05_CHANGE_REQUESTS | CR -- zmenove pozadavky |\n| 06_OUTPUTS/DIAGRAMS | Diagramy (flowchart, architektura, HTML/SVG) |\n| 06_OUTPUTS/PRESENTATIONS | Prezentace (.pptx) |\n\n## Workflow\n\nBR (vstup) -> FS (brainstorming) -> TS (writing-plans, TASKy ziji v TS) -> exekuce.\n\n## Konvence\n\nNaming dle 20_SHARED_REFERENCE/23_NAMING_CONVENTIONS. Lookup ID v ID_REGISTRY.md.\nMulti-app projekt: FS (02_) a TS (03_) se cleni na podslozky per aplikace (appNN) + _project/ pro cross-app specs; BR zustavaji ploche (app v nazvu). Viz 22_STANDARDS/WORK_ITEM_MODEL.md.\nVystupni artefakty: diagramy -> 06_OUTPUTS/DIAGRAMS, prezentace (.pptx) -> 06_OUTPUTS/PRESENTATIONS. Cislo prefixu OUTPUTS = prvni volne v ramci 12_WORK_ITEMS (dle typu projektu; v teto standardni sablone 06). Spustitelne HTML diagramy se tvori v execution layer; do OUTPUTS patri finalni verze ke sdileni (kopie/export nebo .lnk zastupce).');
-    if (del.meetings || del.workItems || del.migration || del.integration || del.testing || del.releaseTransport || del.operations) {
-      script += fr('10_DELIVERY', 'Popis operativni dorucovaci vrstvy projektu',
-        '# README -- slozka 10_DELIVERY\n\n## Ucel\n\nOperativni dorucovaci vrstva projektu. Obsah vznikajici pri kazdodenni praci tymu -- zapisy ze schuzek, work items a dalsi dorucovaci artefakty. Na rozdil od 00_PROJECT_CONTROL se meni casto.\n\n## Co sem patri\n\n- Zapisy ze schuzek a transkripty\n- Business Requests, FS, TS, Dev Tasks, Change Requests\n- Dorucovaci evidence (migrace, integrace, testovani)\n\n## Co sem nepatri\n\nStabilni ridici obsah patri do 00_PROJECT_CONTROL (business, architektura, standardy).\n\n## Pravidlo aktualizace\n\nZiva slozka -- meni se pri kazde session. Strukturalni zmeny se zapisuji do PROJECT_HISTORY.md pres /zvl_end-session.');
-    }
-  }
-
-  script += `
-# ── Krok 3: Execution layer ──────────────────────────────────
-Write-Step "Krok 3/5 -- Vytvareni execution layer..."
-
-New-Item -ItemType Directory -Force -Path $executionRoot | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $executionRoot "apps") | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $executionRoot ".claude\\skills") | Out-Null
-Write-Ok "Execution layer: $executionRoot"
-
-# ── Krok 4: CONTEXT junction + 08_DEV shortcut ───────────────
-Write-Step "Krok 4/5 -- Propojeni vrstev..."
-
-# CONTEXT junction (Execution -> Knowledge)
-$junctionPath = Join-Path $executionRoot "CONTEXT"
-if (Test-Path $junctionPath) {
-    Write-Warn "CONTEXT junction jiz existuje."
-} else {
-    $result = cmd /c "mklink /J \`"$junctionPath\`" \`"$knowledgeRoot\`"" 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Ok "CONTEXT junction -> $knowledgeRoot"
-    } else {
-        Write-Fail "Junction: $result"
-    }
-}
-
-# 08_DEV shortcut (Knowledge -> Execution)
-$lnkPath = Join-Path $knowledgeRoot "00_PROJECT_CONTROL\\08_DEV\\ExecutionLayer.lnk"
-try {
-    $shell = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut($lnkPath)
-    $shortcut.TargetPath = $executionRoot
-    $shortcut.Save()
-    Write-Ok "08_DEV\\ExecutionLayer.lnk -> $executionRoot"
-} catch {
-    Write-Fail "Shortcut: $_"
-}
-
-# ── Krok 5: Verifikace ───────────────────────────────────────
-Write-Step "Krok 5/5 -- Verifikace..."
-
-$checks = @(
-    (Join-Path $knowledgeRoot "00_PROJECT_CONTROL\\01_BUSINESS\\BUSINESS.md"),
-    (Join-Path $knowledgeRoot "00_PROJECT_CONTROL\\05_PLAN\\PLAN.md"),
-    (Join-Path $knowledgeRoot "README.md"),
-    (Join-Path $knowledgeRoot "PROJECT_STATUS.md"),
-    (Join-Path $executionRoot "CONTEXT")${state.delivery.preset !== 'Minimal' ? `,
-    (Join-Path $knowledgeRoot "ID_REGISTRY.md"),
-    (Join-Path $knowledgeRoot "GLOSSARY.md")` : ''}
-)
-
-$allOk = $true
-foreach ($path in $checks) {
-    if (Test-Path $path) {
-        Write-Ok (Split-Path $path -Leaf)
-    } else {
-        Write-Fail "CHYBI: $path"
-        $allOk = $false
-    }
-}
-
-Write-Host ""
-if ($allOk) {
-    Write-Host "  META FRAMEWORK V3 INIT -- HOTOVO" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  Projekt    : ${pid}"
-    Write-Host "  Knowledge  : $knowledgeRoot"
-    Write-Host "  Execution  : $executionRoot"
-    Write-Host ""
-    Write-Host "  Dalsi krok: Otevri Knowledge root v Claude Code" -ForegroundColor Cyan
-} else {
-    Write-Host "  Dokonceno s chybami — viz vystup vyse." -ForegroundColor Yellow
-}
-
-} catch {
-    Write-Host ""
-    Write-Host "  CHYBA: $_" -ForegroundColor Red
-} finally {
-    Write-Host ""
-    Write-Host "Stiskni libovolnou klavesu..." -NoNewline -ForegroundColor DarkGray
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-    Write-Host ""
-}
-`;
-
-  return script;
 }
 
 // ============================================================
@@ -2261,7 +1909,7 @@ function downloadFile(content, filename) {
 function downloadBlankTemplate() {
   const today = new Date().toISOString().slice(0, 10);
   const dateShort = today.replace(/-/g, '');
-  const tpl = `# META FRAMEWORK V3 — Inicializace projektu
+  const tpl = `# META FRAMEWORK V4 — Inicializace projektu
 
 > Vypln VARIABLES a jednotlive sekce. Hotovy soubor nahraj do wizardu (tlacitko "Import .md" nebo pretazenim na stranku).
 > Radky zacinajici > jsou napoveda — nemaz je, parser je ignoruje.
@@ -2277,14 +1925,23 @@ PROJECT_NAME:    Plny nazev projektu
 DATE:            ${today}
 PROJECT_TYPE:    INT
 CUSTOMER:
-KNOWLEDGE_ROOT:  ${state.metadata.knowledgeBase || 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\9999Claude'}\\Interni\\${dateShort}_KratkyNazev
+PROJECT_ROOT:    ${state.metadata.projectBase || 'C:\\PROJECT'}\\INTERNI\\${dateShort}_KratkyNazev
 EXECUTION_ROOT:  ${state.metadata.executionBase || 'C:\\DEV\\Claude'}\\Interni\\${dateShort}_KratkyNazev
+ASSETS_ROOT:     ${state.metadata.assetsBase ? state.metadata.assetsBase + '\\' + dateShort + '_KratkyNazev' : ''}
 INITIAL_MODE:    C
+GITHUB_ORG:      ${state.metadata.githubOrg || 'ARICOMAAEA'}
+REPO_NAME:
+REPO_PRIVATE:    ano
+BRANCH_OWNER:
 \`\`\`
 
 > **PROJECT_TYPE:** INT = interni projekt ARICOMA | ZAK = zakaznicky projekt (vyzaduje CUSTOMER)
 > **INITIAL_MODE:** A = Teoreticky | B = Analyticky | C = Implementacni
-> **Odvozeni cest:** INT: {root}\\Interni\\{PROJECT_ID} | ZAK: {root}\\Zakaznici\\{CUSTOMER}\\{PROJECT_ID}
+> **Odvozeni cest — project layer:** INT: {root}\\INTERNI\\{PROJECT_ID} | ZAK: {root}\\ZAKAZNICI\\{CUSTOMER}\\{PROJECT_ID}
+> **Odvozeni cest — execution layer:** INT: {root}\\Interni\\{PROJECT_ID} | ZAK: {root}\\Zakaznici\\{CUSTOMER}\\{PROJECT_ID}
+> **REPO_NAME:** prazdne = odvodi se automaticky z PROJECT_ID.
+> **REPO_PRIVATE:** ano/ne nebo true/false. Prazdne nebo nerozpoznane = ano (privatni je bezpecny vychozi stav).
+> **BRANCH_OWNER:** krestni jmeno (bez diakritiky, malymi pismeny) pro priklad v CONTRIBUTING.md a FAZE 6 — POVINNE.
 
 ---
 
@@ -2562,7 +2219,7 @@ function render() {
   el('progressLabel').textContent = pct + '%';
 
   // Content
-  const renderers = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6, renderStep7, renderStep8, renderStep9];
+  const renderers = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6, renderStep7, renderStep8, renderStepTopology, renderStep9];
   const content = el('stepContent');
   content.innerHTML = renderers[step]();
   content.className = 'fade-in';
@@ -2574,7 +2231,7 @@ function render() {
   el('btnNext').style.visibility = step === steps.length - 1 ? 'hidden' : 'visible';
 
   // Output tabs
-  if (step === 9) {
+  if (step === steps.length - 1) {
     setTimeout(() => setOutputTab(activeOutputTab), 0);
   }
 
@@ -2708,10 +2365,15 @@ function parseTemplateMarkdown(text) {
   const projectId = getVar('PROJECT_ID');
   const projectType = getVar('PROJECT_TYPE');
   const customer = getVar('CUSTOMER');
-  const knowledgeRoot = getVar('KNOWLEDGE_ROOT');
+  const knowledgeRoot = getVar('PROJECT_ROOT') || getVar('KNOWLEDGE_ROOT');
   const executionRoot = getVar('EXECUTION_ROOT');
+  const assetsRootRaw = getVar('ASSETS_ROOT');
   const mode = getVar('INITIAL_MODE');
   const date = getVar('DATE');
+  const githubOrg = getVar('GITHUB_ORG');
+  const repoName = getVar('REPO_NAME');
+  const repoPrivateRaw = getVar('REPO_PRIVATE');
+  const branchOwner = getVar('BRANCH_OWNER');
   const projectName = getVar('PROJECT_NAME');
 
   // Derive shortName from PROJECT_ID (remove date prefix)
@@ -2720,18 +2382,41 @@ function parseTemplateMarkdown(text) {
     shortName = projectId.replace(/^\d{8}_?/, '');
   }
 
-  // Derive base paths from KNOWLEDGE_ROOT / EXECUTION_ROOT (strip suffix)
+  // Derive base paths from PROJECT_ROOT / EXECUTION_ROOT (strip suffix)
+  // Case-insensitive: getProjectRoot() emits UPPERCASE segments (ZAKAZNICI/INTERNI),
+  // while a legacy/manually-typed template may still carry the old Capitalized
+  // (Zakaznici/Interni) casing. Without the 'i' flag an uppercase segment would
+  // never match, projectBase would never be stripped, and re-deriving the path
+  // would double it (e.g. C:\PROJECT\INTERNI\X\INTERNI\X).
   if (knowledgeRoot) {
-    const suffix = knowledgeRoot.match(/\\(?:Interni|Zakaznici)\\.*$/);
+    const suffix = knowledgeRoot.match(/\\(?:Interni|Zakaznici)\\.*$/i);
     if (suffix) {
-      state.metadata.knowledgeBase = knowledgeRoot.slice(0, -suffix[0].length);
+      state.metadata.projectBase = knowledgeRoot.slice(0, -suffix[0].length);
     }
   }
   if (executionRoot) {
-    const suffix = executionRoot.match(/\\(?:Interni|Zakaznici)\\.*$/);
+    const suffix = executionRoot.match(/\\(?:Interni|Zakaznici)\\.*$/i);
     if (suffix) {
       state.metadata.executionBase = executionRoot.slice(0, -suffix[0].length);
     }
+  }
+
+  // Derive assetsBase from ASSETS_ROOT (strip trailing \<CUSTOMER>\<PROJECT_ID> for ZAK
+  // or \<PROJECT_ID> for INT). Binary mirror base is never guessed from the customer
+  // name (see getAssetsRoot()) — if the expected suffix isn't present, leave
+  // assetsBase empty rather than storing a wrong value that would fail silently
+  // downstream.
+  if (assetsRootRaw) {
+    const escapeRx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let assetsSuffixRx = null;
+    if (projectType && projectType.toUpperCase().startsWith('ZAK') && customer && projectId) {
+      assetsSuffixRx = new RegExp('\\\\' + escapeRx(customer) + '\\\\' + escapeRx(projectId) + '$');
+    } else if (projectId) {
+      assetsSuffixRx = new RegExp('\\\\' + escapeRx(projectId) + '$');
+    }
+    state.metadata.assetsBase = (assetsSuffixRx && assetsSuffixRx.test(assetsRootRaw))
+      ? assetsRootRaw.replace(assetsSuffixRx, '')
+      : '';
   }
 
   // Apply to state
@@ -2739,6 +2424,14 @@ function parseTemplateMarkdown(text) {
   if (customer) state.metadata.customer = customer;
   if (shortName) state.metadata.shortName = shortName;
   if (projectName) state.metadata.fullName = projectName;
+  if (githubOrg) state.metadata.githubOrg = githubOrg;
+  if (repoName) state.metadata.repoName = repoName;
+  if (repoPrivateRaw) {
+    // Accept ano/ne or true/false; default to private (safe default) on
+    // anything unrecognised rather than silently flipping the repo public.
+    state.metadata.repoPrivate = !/^(ne|false|no)$/i.test(repoPrivateRaw.trim());
+  }
+  if (branchOwner) state.metadata.branchOwner = branchOwner;
   if (date) state.metadata.date = date;
   if (mode) state.metadata.mode = mode.toUpperCase();
 
@@ -2905,7 +2598,7 @@ function parseTemplateMarkdown(text) {
 
   saveState();
   // Jump to output step
-  state.currentStep = 9;
+  state.currentStep = steps.length - 1;
   render();
   showToast('Template importovan! Zkontroluj data a generuj vystup.');
 }

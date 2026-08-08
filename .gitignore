@@ -1,0 +1,5 @@
+# SDD scratch — ledger, briefy, review packages (git-ignored)
+.superpowers/
+
+# Node
+node_modules/

@@ -1,0 +1,18 @@
+# CODEOWNERS
+#
+# POZOR: branch protection na `main` ma `require_code_owner_reviews: false`
+# → CODEOWNERS je ADVISORY: dokumentuje vlastnictvi, nevynucuje approval pri mergi
+# (zamerne, at self-merge nikoho nebrzdi — rozhodnuti D7 ve specu).
+#
+# Format: <cesta>  @github-username [@dalsi]
+# Uzivatel musi mit ucet v org ARICOMAAEA + alespon `write` pristup k repu,
+# jinak GitHub radku ignoruje.
+
+# Vychozi vlastnik celeho repa
+*                                   @{{GITHUB_OWNER}}
+
+# Manifest dev repozitaru — zmena zde ovlivnuje bootstrap vsech prispevatelu
+/00_PROJECT_CONTROL/08_DEV/         @{{GITHUB_OWNER}}
+
+# Infrastrukturni skripty
+/scripts/                           @{{GITHUB_OWNER}}
