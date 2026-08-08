@@ -1,0 +1,19 @@
+# Byte-fidelity guard for template assets.
+#
+# assets/ holds files that the wizard's generated prompt tells Claude Code to
+# copy VERBATIM into every new project (PowerShell scripts, .github templates,
+# git templates). Several of these carry a UTF-8 BOM on purpose: PowerShell
+# 5.1 reads a BOM-less UTF-8 file through the system ANSI codepage and mangles
+# any Czech diacritics in it. sha256 pins in tests/assets.test.mjs assert the
+# exact bytes of the .ps1 scripts against a corrected copy of the KOFOLA
+# production source.
+#
+# Without this file, git's core.autocrlf=true (set for this repo) rewrites
+# LF -> CRLF on checkout for anything it thinks is text, which both breaks
+# byte-identity with the source and silently reflows any BOM-adjacent bytes.
+# That makes the sha256 pins pass or fail depending on checkout state alone,
+# not on any real edit to the assets - a guard that flips with the working
+# tree is not a guard. Mark the whole asset tree (and its exact-copy siblings)
+# binary so git never touches line endings or performs diff/merge text
+# filtering on them; the bytes it stores are the bytes it hands back.
+assets/** -text -diff

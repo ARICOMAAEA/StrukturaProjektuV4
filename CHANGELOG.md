@@ -19,3 +19,6 @@ Vsechny vyznamne zmeny tohoto nastroje. Format: [Keep a Changelog](https://keepa
 ### Removed
 - **Breaking:** `generatePowerShell()` (616 radku). Slo o mrtvy kod bez volajiciho; README ho chybne inzeroval jako treti vystup.
 - Moznost zalozit projekt ve V3 topologii.
+
+### Fixed
+- `assets/` uz nepodleha eol konverzi (`core.autocrlf=true` bez `.gitattributes` menilo LF na CRLF pri checkoutu, coz rozbijelo byte-fidelitu sablon a sha256 pin testy nezavisle na jakekoli skutecne zmene).
