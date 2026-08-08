@@ -2,7 +2,7 @@
 created: 2026-07-29 12:00
 author: Vojta (p. Lička)
 origin_type: manual
-origin_source: "StrukturaProjektuV3, Task 9 — assets/github/CONTRIBUTING.md sablona pro generovane projekty"
+origin_source: "StrukturaProjektuV4, Task 9 — assets/github/CONTRIBUTING.md sablona pro generovane projekty"
 purpose: Popisuje branch → PR → merge workflow projektového repa.
 ---
 

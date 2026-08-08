@@ -11,6 +11,7 @@ Vsechny vyznamne zmeny tohoto nastroje. Format: [Keep a Changelog](https://keepa
 - Testy: Node harness pro cisté funkce wizardu, Pester testy pro `Test-Topology.ps1`.
 
 ### Changed
+- Slozka i GitHub repo prejmenovany na StrukturaProjektuV4 (GitHub drzi redirect ze stareho nazvu).
 - **Breaking:** wizard generuje topologii V4 misto V3. Projektova vrstva je git repo v `C:\PROJECT`, ne slozka na OneDrive.
 - `08_DEV/` obsahuje `repos.json` + generovany `REPOS.md` misto `ExecutionLayer.lnk`.
 - Claude Code prompt provadi 8 fazi vcetne `gh repo create` a branch protection — obe s potvrzenim uzivatele.
