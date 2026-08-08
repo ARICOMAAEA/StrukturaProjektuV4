@@ -13,7 +13,17 @@
 # byte-identity with the source and silently reflows any BOM-adjacent bytes.
 # That makes the sha256 pins pass or fail depending on checkout state alone,
 # not on any real edit to the assets - a guard that flips with the working
-# tree is not a guard. Mark the whole asset tree (and its exact-copy siblings)
-# binary so git never touches line endings or performs diff/merge text
-# filtering on them; the bytes it stores are the bytes it hands back.
-assets/** -text -diff
+# tree is not a guard.
+#
+# `-text` alone is what suppresses the translation. Deliberately NOT `-diff`:
+# marking these binary would render future template edits as "binary files
+# differ", and these are exactly the files a human must be able to read in a
+# diff before they ship into a customer project.
+#
+# Historical note on the pins: bootstrap.ps1 and check-drift.ps1 were only ever
+# `cp`-ed from the source, so their LF bytes - and therefore their pins - were
+# always correct. Generate-ReposMd.ps1 was later rewritten by an editor (to add
+# the `@(...)` wrapper) which wrote CRLF, so its pin captured CRLF bytes; that
+# is why restoring LF changed only that one pin. Verified: the superseded pin
+# 5091c899... is exactly the CRLF hash of today's LF file.
+assets/** -text
