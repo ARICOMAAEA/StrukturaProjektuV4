@@ -239,6 +239,21 @@ Po testu se testovací repo a všechny tři složky smažou — **s explicitním
 | Přejmenování složky rozbije záložky | drobná nepříjemnost | vědomě přijato (W7) |
 | Zásah do 2940řádkového HTML rozbije existující generování | wizard přestane fungovat | git repo s historií; akceptační test §9 je end-to-end |
 
+## 11.1 Výsledek akceptačního testu (2026-08-08) — a co se NEpotvrdilo
+
+Test proběhl nad reálným projektem `INT / 20260807_V4WizardTest` včetně reálného private repa. `Test-Topology.ps1` → **`GATE PROSEL — 9 kontrol OK`**.
+
+| Tvrzení | Stav |
+|---|---|
+| Branch protection na `main` odmítne přímý push | ✅ ověřeno — `GH006: Protected branch update failed` |
+| Větev ve tvaru `<jmeno>/<co-dela>` projde | ✅ ověřeno — `vojta/test-protection` pushnuta |
+| `gh api …/rulesets` payload z promptu GitHub přijme | ✅ ověřeno — ruleset vytvořen (`id 20583172`, `enforcement=active`) |
+| **Ruleset technicky odmítne push větve mimo vzor** (§6.1) | ❌ **NEPOTVRZENO** |
+
+**Detail neověřeného tvrzení:** větev `SpatnyNazev` (mimo vzor `^[a-z0-9-]+/[a-z0-9-]+$`) se **pushnula bez odmítnutí**, přesto že ruleset je `enforcement=active`, `bypass=never` a `gh api repos/…/rules/branches/SpatnyNazev` potvrzuje, že se na ni pravidlo vztahuje. Org plan `team`, repo private.
+
+Nejde o chybu generátoru — prompt vytvoří přesně to, co tento spec žádá, a API to přijme. Vypadá to na chování či limit GitHubu u `branch_name_pattern`. **Dokud se to nevyjasní, neopírej se o ruleset jako o vynucenou ochranu.** Vynucená je pouze branch protection na `main`, což je hlavní cíl (D7); ruleset ber jako dokumentaci konvence.
+
 ## 12. Rozsah
 
 **V rozsahu:** rozšíření wizardu na V4 (nový krok, nové cesty, 8fázový prompt, tree preview), zrušení `generatePowerShell()`, `Test-Topology.ps1`, přejmenování složky, README + CHANGELOG nástroje, deprecation stub `meta-framework-init`, přeformulování pravidla v globální `CLAUDE.md`, akceptační test.
