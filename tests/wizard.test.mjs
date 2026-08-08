@@ -204,6 +204,44 @@ test('renderStepTopology nabizi oba zname OneDrive rooty', async () => {
   assert.ok(html.includes('ARICOMAAEA'), 'chybi default org');
 });
 
+// Regrese na Critical bug: preset tlacitka drive vkladala Windows cestu
+// (s backslashy) primo do inline onclick="..." atributu. escAttr() escapuje
+// jen &"<>, ne backslash — prohlizec pak vyhodnotil JS string literal typu
+// 'C:\Users\...' a neplatne escape sekvence (\U, \l, \O, \P, \p, \9, \I) tise
+// zmizely. Test musi projit skrz vyrenderovany markup, ne jen zavolat funkci
+// primo na state — jinak by prosel i pred opravou.
+test('preset tlacitka topologie nevkladaji cestu do onclick atributu (regrese na ztraceny backslash)', async () => {
+  const w = await loadWizard();
+  const html = w.renderStepTopology();
+
+  // 1) Zadny handler atribut nesmi obsahovat syrovou Windows cestu s backslashem.
+  const handlerAttrs = [...html.matchAll(/on(?:click|input|change)="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(handlerAttrs.length > 0, 'v markupu nejsou zadne on* handlery k proverce');
+  for (const attr of handlerAttrs) {
+    assert.ok(!attr.includes('\\'), `handler atribut obsahuje backslash (cesta unikla do JS literalu): ${attr}`);
+    for (const preset of w.ASSETS_ROOT_PRESETS) {
+      assert.ok(!attr.includes(preset.value), `handler atribut vklada preset cestu primo: ${attr}`);
+    }
+  }
+
+  // 2) Markup musi pouzivat setAssetsPreset(index) misto embedovani hodnoty.
+  assert.ok(html.includes('setAssetsPreset(0)'), 'chybi setAssetsPreset(0) v markupu presetu');
+  assert.equal(typeof w.setAssetsPreset, 'function', 'setAssetsPreset neni exportovana top-level funkce');
+
+  // 3) Zavolani funkce (to je ted CELY mechanismus, markup uz cestu nenese)
+  //    musi nastavit assetsBase na hodnotu identickou s ASSETS_ROOT_PRESETS[i].value,
+  //    vcetne zachovanych backslashu.
+  w.ASSETS_ROOT_PRESETS.forEach((preset, i) => {
+    w.setAssetsPreset(i);
+    assert.equal(w.state.metadata.assetsBase, preset.value, `preset ${i} nenastavil spravnou hodnotu`);
+    assert.ok(w.state.metadata.assetsBase.includes('\\'), `preset ${i} ztratil backslashy`);
+  });
+
+  // 4) getAssetsRoot() musi vracet cestu se zachovanymi \ separatory.
+  w.setAssetsPreset(2);
+  assert.ok(w.getAssetsRoot().includes('\\'), 'getAssetsRoot() ztratil backslashy po vyberu presetu');
+});
+
 /** Bezne naplnena metadata pro testy promptu. */
 function fullMetadata(w) {
   return setMetadata(w, {

@@ -766,13 +766,19 @@ const ASSETS_ROOT_PRESETS = [
     label: '9999Claude\\Interni (interni projekty)' },
 ];
 
+function setAssetsPreset(i) {
+  state.metadata.assetsBase = ASSETS_ROOT_PRESETS[i].value;
+  saveState();
+  render();
+}
+
 function renderStepTopology() {
   const m = state.metadata;
   let html = sectionHeader('Topologie & Git',
     'Tri fyzicka mista projektu a nastaveni GitHub repozitare. Cesta k binarnimu mirroru se NEDOPOCITAVA — musi byt zadana explicitne.');
 
-  const presetButtons = ASSETS_ROOT_PRESETS.map((p) => `
-    <button onclick="state.metadata.assetsBase='${escAttr(p.value)}';saveState();render();"
+  const presetButtons = ASSETS_ROOT_PRESETS.map((p, i) => `
+    <button onclick="setAssetsPreset(${i})"
       class="w-full text-left px-3 py-2 text-xs border rounded-md mb-1.5 transition-colors ${m.assetsBase === p.value ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-zinc-200 hover:bg-zinc-50'}">
       ${escHtml(p.label)}
     </button>`).join('');
