@@ -78,20 +78,29 @@ real directories already in use.
 
 > Every structural folder also gets a **folder-description `README.md`** (Účel / Co sem patří / Co sem nepatří / Kdo smí měnit) following the KOFOLA pattern.
 
+> **The wizard's tree view is the authoritative structure.** This sketch is a summary for
+> readers and is kept deliberately coarse; it is not a file-by-file contract. The generated
+> prompt is checked against the tree by `npm test`
+> (`kazdy soubor ze stromu je v promptu pokryty`), so tree and prompt cannot drift apart —
+> but this README is prose and can. When in doubt, open the wizard.
+
 ```
 <PROJECT_ID>/                           (git project layer, C:\PROJECT\...)
+├── .claude/                            (agents/, skills/, hooks/, settings.json — per wizard selection)
+├── CLAUDE.md
+├── ContextQuick.md
 ├── 00_PROJECT_CONTROL/README.md
-│   ├── 01_BUSINESS/BUSINESS.md + README.md
-│   ├── 02_KNOWLEDGE/README.md
-│   ├── 03_ARCHITECTURE/ADR/ + README.md
-│   ├── 04_ENGINEERING/README.md
+│   ├── 01_BUSINESS/BUSINESS.md + stakeholders.md + README.md
+│   ├── 02_KNOWLEDGE/KNOWLEDGE.md + README.md
+│   ├── 03_ARCHITECTURE/ARCHITECTURE.md + ADR/ + README.md
+│   ├── 04_ENGINEERING/ENGINEERING.md + README.md
 │   ├── 05_PLAN/PLAN.md + README.md
 │   ├── 06_DATA/DATA.md + README.md
 │   ├── 07_RESOURCE/prompty/
-│   │               RESOURCE.md + README.md
+│   │               RESOURCE.md + SYSTEM_ACCESS.md + README.md
 │   └── 08_DEV/repos.json + REPOS.md + README.md
 ├── 10_DELIVERY/README.md               (Standard+)
-│   ├── 11_MEETINGS/README.md
+│   ├── 11_MEETINGS/MEETINGS_OVERVIEW.md + README.md
 │   ├── 12_WORK_ITEMS/01_BR/ + 02_FS,03_TS/{_project,app01}/ + 04,05/ + 06_OUTPUTS/{DIAGRAMS,PRESENTATIONS} + README.md
 │   ├── 13_MIGRATION/01-07/            (Full only)
 │   ├── 14_INTEGRATION/01-04/          (Full only)
@@ -99,7 +108,7 @@ real directories already in use.
 │   ├── 16_RELEASE_TRANSPORT/          (Full only)
 │   └── 17_OPERATIONS/                 (Full only)
 ├── 20_SHARED_REFERENCE/README.md       (Standard+)
-│   ├── 21_TEMPLATES/README.md
+│   ├── 21_TEMPLATES/*-template.md + README.md   (which templates: per wizard selection)
 │   ├── 22_STANDARDS/TAGS.md + README.md
 │   └── 23_NAMING_CONVENTIONS/README.md
 ├── 99_ARCHIVE/
@@ -109,12 +118,14 @@ real directories already in use.
 ├── _local/.gitkeep
 ├── _dev      --> Execution Layer        (NTFS junction, created in Phase 7)
 ├── _assets   --> Binary mirror (OneDrive) (NTFS junction, created in Phase 7)
+├── DIAGRAMS_INDEX.md                   (Standard+, optional)
 ├── GLOSSARY.md                         (Standard+)
 ├── ID_REGISTRY.md                      (Standard+)
 ├── PROJECT_HISTORY.md
 ├── PROJECT_STATUS.md
 ├── README.md
 ├── STALE.md                            (Standard+)
+├── START_HERE.md                       (Standard+, optional)
 ├── TOPIC_MAP.md                        (Standard+)
 ├── Todo.md
 ├── CHANGELOG.md

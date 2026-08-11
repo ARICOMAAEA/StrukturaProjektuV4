@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Založení nového projektu v topologii V4 — manuál</title>
+  <style>
+    /* ── SAP 72 typeface (CDN; Arial fallback funguje i offline) ───────────── */
+    @font-face { font-family:"72"; font-weight:400; font-display:swap;
+      src:url("https://unpkg.com/@sap-theming/theming-base-content@11.23.0/content/Base/fonts/72-Regular.woff2") format("woff2"); }
+    @font-face { font-family:"72"; font-weight:700; font-display:swap;
+      src:url("https://unpkg.com/@sap-theming/theming-base-content@11.23.0/content/Base/fonts/72-Bold.woff2") format("woff2"); }
+    @font-face { font-family:"72Mono"; font-weight:400; font-display:swap;
+      src:url("https://unpkg.com/@sap-theming/theming-base-content@11.23.0/content/Base/fonts/72Mono-Regular.woff2") format("woff2"); }
+
+    :root {
+      --sapBrandColor:#0070F2; --sapShellColor:#1B2A37; --sapShell-TextColor:#FFFFFF;
+      --sapBaseColor:#FFFFFF; --sapBackgroundColor:#F5F6F7;
+      --sapTextColor:#1D2D3E; --sapContent-LabelColor:#6A6D70;
+      --sapGroup-ContentBorderColor:#D9D9D9; --sapList-BorderColor:#E8E8E8;
+      --sapPositiveColor:#256F3A; --sapNegativeColor:#AA0808;
+      --sapCriticalColor:#E9730C; --sapInformativeColor:#0070F2; --sapNeutralColor:#6A6D70;
+      --sapFontFamily:"72","72full",Arial,Helvetica,sans-serif;
+      --sapFontMono:"72Mono","Courier New",monospace;
+      --shadow-card:0 0 .25rem 0 rgba(0,0,0,.08),0 .5rem 1rem 0 rgba(0,0,0,.08);
+      --shadow-header:0 .125rem .125rem 0 rgba(0,0,0,.12);
+      /* Procesní kategorie */
+      --accent:#0070F2; --accent-bg:#EBF5FE;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:var(--sapFontFamily);background:var(--sapBackgroundColor);
+      color:var(--sapTextColor);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+    .shellbar{display:flex;align-items:center;gap:.75rem;height:44px;padding:0 1rem;
+      background:var(--sapShellColor);color:var(--sapShell-TextColor);box-shadow:var(--shadow-header);}
+    .shellbar .logo{font-weight:700;font-size:1rem;letter-spacing:-.01em;}
+    .shellbar .sep{width:1px;height:20px;background:rgba(255,255,255,.3);}
+    .shellbar .ctx{font-size:.875rem;opacity:.9;}
+
+    .wrap{max-width:1200px;margin:0 auto;padding:1.5rem;}
+
+    .page-header{display:flex;align-items:baseline;gap:.75rem;margin-bottom:.25rem;}
+    .page-header .bar{width:4px;height:24px;border-radius:2px;background:var(--accent);}
+    h1{font-size:1.5rem;font-weight:700;letter-spacing:-.01em;}
+    .subtitle{color:var(--sapContent-LabelColor);font-size:.875rem;margin:0 0 1.5rem 16px;}
+
+    .diagram-card{background:var(--sapBaseColor);border:1px solid var(--sapGroup-ContentBorderColor);
+      border-radius:.5rem;box-shadow:var(--shadow-card);padding:1.5rem;overflow-x:auto;}
+    svg{width:100%;min-width:760px;max-width:900px;margin:0 auto;display:block;}
+
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:1.5rem;}
+    .card{background:var(--sapBaseColor);border:1px solid var(--sapGroup-ContentBorderColor);
+      border-radius:.5rem;box-shadow:var(--shadow-card);padding:1.25rem;}
+    .card-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;}
+    .card-dot{width:8px;height:8px;border-radius:50%;}
+    .card h3{font-size:.875rem;font-weight:700;}
+    .card ul{list-style:none;color:var(--sapContent-LabelColor);font-size:.8125rem;line-height:1.6;}
+
+    /* ── Manuálová část ────────────────────────────────────────────────────── */
+    .section{background:var(--sapBaseColor);border:1px solid var(--sapGroup-ContentBorderColor);
+      border-radius:.5rem;box-shadow:var(--shadow-card);padding:1.5rem;margin-top:1.5rem;}
+    .section > h2{font-size:1.0625rem;font-weight:700;margin-bottom:.25rem;
+      display:flex;align-items:center;gap:.5rem;}
+    .section > h2 .num{display:inline-flex;align-items:center;justify-content:center;
+      width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;
+      font-size:.75rem;font-weight:700;flex:0 0 22px;}
+    .section > .lead{color:var(--sapContent-LabelColor);font-size:.8125rem;margin:0 0 1rem 30px;}
+    .section h3{font-size:.8125rem;font-weight:700;margin:1.1rem 0 .4rem;
+      text-transform:uppercase;letter-spacing:.04em;color:var(--sapContent-LabelColor);}
+    .section p{font-size:.875rem;line-height:1.6;margin-bottom:.6rem;}
+    .section ul{list-style:none;font-size:.875rem;line-height:1.7;margin-left:.25rem;}
+    .section ul li{padding-left:1.1rem;position:relative;}
+    .section ul li::before{content:"";position:absolute;left:.25rem;top:.62em;
+      width:5px;height:5px;border-radius:50%;background:var(--sapContent-LabelColor);}
+    code{font-family:var(--sapFontMono);font-size:.8125rem;background:var(--sapBackgroundColor);
+      border:1px solid var(--sapList-BorderColor);border-radius:4px;padding:.08em .35em;
+      color:var(--sapTextColor);word-break:break-word;}
+    pre{font-family:var(--sapFontMono);font-size:.8125rem;background:#1B2A37;color:#E8E8E8;
+      border-radius:.5rem;padding:.9rem 1.1rem;overflow-x:auto;line-height:1.6;margin:.5rem 0 .8rem;}
+    pre code{background:none;border:none;padding:0;color:inherit;font-size:inherit;}
+
+    table{width:100%;border-collapse:collapse;font-size:.8125rem;margin:.4rem 0 .6rem;}
+    th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--sapList-BorderColor);
+      vertical-align:top;}
+    th{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;
+      color:var(--sapContent-LabelColor);font-weight:700;border-bottom:1px solid var(--sapGroup-ContentBorderColor);}
+    td.mono{font-family:var(--sapFontMono);white-space:nowrap;}
+
+    .note{border-left:3px solid var(--accent);background:var(--accent-bg);
+      border-radius:0 .375rem .375rem 0;padding:.7rem .95rem;margin:.6rem 0;font-size:.8125rem;line-height:1.6;}
+    .note.warn{border-left-color:#E9730C;background:#FFF8F3;}
+    .note.stop{border-left-color:#AA0808;background:#FEF7F7;}
+    .note.ok{border-left-color:#256F3A;background:#F5FAF5;}
+    .note .t{display:block;font-weight:700;margin-bottom:.15rem;}
+
+    .approval{display:flex;flex-wrap:wrap;margin-top:1.5rem;background:var(--sapBaseColor);
+      border:1px solid var(--sapGroup-ContentBorderColor);border-radius:.5rem;
+      box-shadow:var(--shadow-card);overflow:hidden;}
+    .approval .field{flex:1 1 auto;min-width:140px;padding:.6rem .9rem;border-right:1px solid var(--sapList-BorderColor);}
+    .approval .field:last-child{border-right:none;}
+    .approval .lbl{display:block;font-size:.68rem;color:var(--sapContent-LabelColor);
+      text-transform:uppercase;letter-spacing:.04em;margin-bottom:.15rem;}
+    .approval .val{font-size:.85rem;font-weight:700;color:var(--sapTextColor);}
+    .status-approved{display:inline-block;background:#F5FAF5;color:#256F3A;border:1px solid #256F3A;
+      border-radius:12px;padding:.05rem .55rem;font-size:.72rem;font-weight:700;}
+    .footer{text-align:center;margin-top:1.5rem;color:var(--sapContent-LabelColor);font-size:.75rem;}
+
+    .node{transition:filter .15s ease;}
+    .node:hover{filter:brightness(.985);}
+    .tcode{font-family:var(--sapFontMono);}
+  </style>
+</head>
+<body>
+  <div class="shellbar">
+    <span class="logo">SAP</span><span class="sep"></span>
+    <span class="ctx">Meta Framework · StrukturaProjektuV4</span>
+  </div>
+
+  <div class="wrap">
+    <div class="page-header"><span class="bar"></span><h1>Založení nového projektu v topologii V4</h1></div>
+    <p class="subtitle">Od vyplnění wizardu po akceptační bránu — kdo co dělá a kde se čeká na potvrzení.</p>
+
+    <!-- ══════════════════ DIAGRAM ══════════════════ -->
+    <div class="diagram-card">
+      <svg viewBox="0 0 900 1420" role="img"
+           aria-label="BPMN swimlane diagram: dráha Člověk vyplní wizard a potvrzuje dvě brány, dráha Claude Code provádí osm fází zakládání projektu">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto-start-reverse">
+            <path d="M1 1 L8 4 L1 7" fill="none" stroke="#6A6D70" stroke-width="1.4"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.10"/>
+          </filter>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#F5F6F7"/>
+
+        <!-- ═══ POOL ═══ -->
+        <rect x="40" y="56" width="820" height="1274" fill="#FFFFFF" stroke="#89919A" stroke-width="1.4" rx="4"/>
+        <rect x="40" y="56" width="30" height="1274" fill="#F5F6F7" stroke="#89919A" stroke-width="1.4"/>
+        <text x="55" y="693" transform="rotate(-90 55 693)" text-anchor="middle"
+              fill="#1D2D3E" font-size="12" font-weight="700">Založení projektu V4</text>
+
+        <!-- ═══ LANE HEADERS ═══ -->
+        <rect x="70" y="56" width="395" height="34" fill="#F5F6F7" stroke="#D9D9D9" stroke-width="1"/>
+        <text x="267" y="78" text-anchor="middle" fill="#1D2D3E" font-size="12" font-weight="700">Člověk (p. Lička)</text>
+        <rect x="465" y="56" width="395" height="34" fill="#F5F6F7" stroke="#D9D9D9" stroke-width="1"/>
+        <text x="662" y="78" text-anchor="middle" fill="#1D2D3E" font-size="12" font-weight="700">Claude Code</text>
+        <line x1="465" y1="90" x2="465" y2="1330" stroke="#D9D9D9" stroke-width="1"/>
+
+        <!-- ═══ CONNECTORS (kresleny pred uzly) ═══ -->
+        <line x1="267" y1="147" x2="267" y2="185" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="267" y1="241" x2="267" y2="273" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="267" y1="329" x2="267" y2="361" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M267 417 V433 H662 V449" fill="none" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="662" y1="505" x2="662" y2="537" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="662" y1="593" x2="662" y2="625" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="662" y1="681" x2="662" y2="713" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="662" y1="769" x2="662" y2="801" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M662 857 V873 H267 V889" fill="none" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="295" y1="917" x2="562" y2="917" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M662 945 V961 H267 V977" fill="none" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="295" y1="1005" x2="562" y2="1005" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="662" y1="1033" x2="662" y2="1065" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <line x1="662" y1="1121" x2="662" y2="1153" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M662 1209 V1225 H267 V1251" fill="none" stroke="#6A6D70" stroke-width="1.4" marker-end="url(#arrow)"/>
+
+        <!-- ═══ START ═══ -->
+        <circle cx="267" cy="130" r="17" fill="#FFFFFF" stroke="#256F3A" stroke-width="1.6"/>
+        <text x="292" y="134" fill="#6A6D70" font-size="10.5">Nový projekt v zadání</text>
+
+        <!-- ═══ LEVA DRAHA — ulohy cloveka (user task) ═══ -->
+        <g class="node">
+          <rect x="167" y="185" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(175,192)" fill="#0070F2"><circle cx="7" cy="4.5" r="2.6"/><path d="M1.5 13 C1.5 9.3 12.5 9.3 12.5 13 Z"/></g>
+          <text x="267" y="211" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">Otevřít wizard</text>
+          <text x="267" y="229" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">struktura-wizard.html</text>
+        </g>
+        <g class="node">
+          <rect x="167" y="273" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(175,280)" fill="#0070F2"><circle cx="7" cy="4.5" r="2.6"/><path d="M1.5 13 C1.5 9.3 12.5 9.3 12.5 13 Z"/></g>
+          <text x="267" y="299" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">Vyplnit 11 kroků</text>
+          <text x="267" y="317" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">cesty · GitHub · branchOwner</text>
+        </g>
+        <g class="node">
+          <rect x="167" y="361" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(175,368)" fill="#0070F2"><circle cx="7" cy="4.5" r="2.6"/><path d="M1.5 13 C1.5 9.3 12.5 9.3 12.5 13 Z"/></g>
+          <text x="267" y="387" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">Zkopírovat prompt</text>
+          <text x="267" y="405" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">záložka Claude Code Prompt</text>
+        </g>
+
+        <!-- ═══ PRAVA DRAHA — faze 0..4 (service task) ═══ -->
+        <g class="node">
+          <rect x="562" y="449" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(570,456)" fill="none" stroke="#0070F2" stroke-width="1.3"><circle cx="7" cy="7" r="3"/><path d="M7 1.5 V3.5 M7 10.5 V12.5 M1.5 7 H3.5 M10.5 7 H12.5 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M3.2 10.8 L4.5 9.5"/></g>
+          <text x="662" y="475" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">FÁZE 0 — Preflight</text>
+          <text x="662" y="493" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">gh auth · git · volné cesty</text>
+        </g>
+        <g class="node">
+          <rect x="562" y="537" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(570,544)" fill="none" stroke="#0070F2" stroke-width="1.3"><circle cx="7" cy="7" r="3"/><path d="M7 1.5 V3.5 M7 10.5 V12.5 M1.5 7 H3.5 M10.5 7 H12.5 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M3.2 10.8 L4.5 9.5"/></g>
+          <text x="662" y="563" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">FÁZE 1 — Tři kořeny</text>
+          <text x="662" y="581" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">project · execution · assets</text>
+        </g>
+        <g class="node">
+          <rect x="562" y="625" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(570,632)" fill="none" stroke="#0070F2" stroke-width="1.3"><circle cx="7" cy="7" r="3"/><path d="M7 1.5 V3.5 M7 10.5 V12.5 M1.5 7 H3.5 M10.5 7 H12.5 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M3.2 10.8 L4.5 9.5"/></g>
+          <text x="662" y="651" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">FÁZE 2 — Obsah vrstvy</text>
+          <text x="662" y="669" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">struktura + repos.json</text>
+        </g>
+        <g class="node">
+          <rect x="562" y="713" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(570,720)" fill="none" stroke="#0070F2" stroke-width="1.3"><circle cx="7" cy="7" r="3"/><path d="M7 1.5 V3.5 M7 10.5 V12.5 M1.5 7 H3.5 M10.5 7 H12.5 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M3.2 10.8 L4.5 9.5"/></g>
+          <text x="662" y="739" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">FÁZE 3 — V4 nadstavba</text>
+          <text x="662" y="757" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">assets → scripts, .github</text>
+        </g>
+        <g class="node">
+          <rect x="562" y="801" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(570,808)" fill="none" stroke="#0070F2" stroke-width="1.3"><circle cx="7" cy="7" r="3"/><path d="M7 1.5 V3.5 M7 10.5 V12.5 M1.5 7 H3.5 M10.5 7 H12.5 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M3.2 10.8 L4.5 9.5"/></g>
+          <text x="662" y="827" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">FÁZE 4 — Git</text>
+          <text x="662" y="845" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">git init -b main + commit</text>
+        </g>
+
+        <!-- ═══ BRANA 1 ═══ -->
+        <path d="M267 889 L295 917 L267 945 L239 917 Z" fill="#FFF8F3" stroke="#E9730C" stroke-width="1.6"/>
+        <path d="M258 908 L276 926 M276 908 L258 926" stroke="#E9730C" stroke-width="1.8" stroke-linecap="round"/>
+        <text x="230" y="913" text-anchor="end" fill="#1D2D3E" font-size="11" font-weight="700">Potvrdit FÁZI 5?</text>
+        <text x="230" y="928" text-anchor="end" fill="#6A6D70" font-size="10">NE → Claude nic nespustí</text>
+        <text x="428" y="909" text-anchor="middle" fill="#6A6D70" font-size="10.5">ANO</text>
+
+        <!-- FAZE 5 -->
+        <g class="node">
+          <rect x="562" y="889" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(570,896)" fill="none" stroke="#0070F2" stroke-width="1.3"><circle cx="7" cy="7" r="3"/><path d="M7 1.5 V3.5 M7 10.5 V12.5 M1.5 7 H3.5 M10.5 7 H12.5 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M3.2 10.8 L4.5 9.5"/></g>
+          <text x="662" y="915" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">FÁZE 5 — GitHub repo</text>
+          <text x="662" y="933" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">gh repo create --push</text>
+        </g>
+
+        <!-- ═══ BRANA 2 ═══ -->
+        <path d="M267 977 L295 1005 L267 1033 L239 1005 Z" fill="#FFF8F3" stroke="#E9730C" stroke-width="1.6"/>
+        <path d="M258 996 L276 1014 M276 996 L258 1014" stroke="#E9730C" stroke-width="1.8" stroke-linecap="round"/>
+        <text x="230" y="1001" text-anchor="end" fill="#1D2D3E" font-size="11" font-weight="700">Potvrdit FÁZI 6?</text>
+        <text x="230" y="1016" text-anchor="end" fill="#6A6D70" font-size="10">NE → main zůstane nechráněný</text>
+        <text x="428" y="997" text-anchor="middle" fill="#6A6D70" font-size="10.5">ANO</text>
+
+        <!-- FAZE 6 -->
+        <g class="node">
+          <rect x="562" y="977" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(570,984)" fill="none" stroke="#0070F2" stroke-width="1.3"><circle cx="7" cy="7" r="3"/><path d="M7 1.5 V3.5 M7 10.5 V12.5 M1.5 7 H3.5 M10.5 7 H12.5 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M3.2 10.8 L4.5 9.5"/></g>
+          <text x="662" y="1003" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">FÁZE 6 — Ochrana main</text>
+          <text x="662" y="1021" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">protection + ruleset</text>
+        </g>
+        <!-- anotace k ruleset -->
+        <path d="M776 981 h-6 v48 h6" fill="none" stroke="#89919A" stroke-width="1"/>
+        <text x="782" y="992" fill="#6A6D70" font-size="9">Ruleset se na</text>
+        <text x="782" y="1003" fill="#6A6D70" font-size="9">plánu team</text>
+        <text x="782" y="1014" fill="#6A6D70" font-size="9">NEVYNUCUJE —</text>
+        <text x="782" y="1025" fill="#6A6D70" font-size="9">chrání protection</text>
+        <path d="M770 1005 L762 1005" fill="none" stroke="#89919A" stroke-width="1" stroke-dasharray="3,3"/>
+
+        <!-- FAZE 7 -->
+        <g class="node">
+          <rect x="562" y="1065" width="200" height="56" rx="8" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5" filter="url(#sh)"/>
+          <g transform="translate(570,1072)" fill="none" stroke="#0070F2" stroke-width="1.3"><circle cx="7" cy="7" r="3"/><path d="M7 1.5 V3.5 M7 10.5 V12.5 M1.5 7 H3.5 M10.5 7 H12.5 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M3.2 10.8 L4.5 9.5"/></g>
+          <text x="662" y="1091" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">FÁZE 7 — Junctiony</text>
+          <text x="662" y="1109" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">bootstrap.ps1</text>
+        </g>
+
+        <!-- FAZE 8 — akceptacni brana (zeleny ram) -->
+        <g class="node">
+          <rect x="562" y="1153" width="200" height="56" rx="8" fill="#F5FAF5" stroke="#256F3A" stroke-width="1.6" filter="url(#sh)"/>
+          <g transform="translate(570,1160)" fill="none" stroke="#256F3A" stroke-width="1.5"><path d="M2 7 L6 11 L12.5 2.5"/></g>
+          <text x="662" y="1179" text-anchor="middle" fill="#1D2D3E" font-size="12.5" font-weight="700">FÁZE 8 — Akceptace</text>
+          <text x="662" y="1197" text-anchor="middle" class="tcode" fill="#6A6D70" font-size="10.5">Test-Topology.ps1 · 9 kontrol</text>
+        </g>
+
+        <!-- ═══ END ═══ -->
+        <circle cx="267" cy="1269" r="18" fill="#FFFFFF" stroke="#6A6D70" stroke-width="3.5"/>
+        <text x="294" y="1273" fill="#6A6D70" font-size="10.5">GATE PROSEL — projekt připraven</text>
+
+        <!-- ═══ LEGENDA ═══ -->
+        <g transform="translate(70,1372)">
+          <rect x="0" y="-8" width="14" height="14" rx="3" fill="#EBF5FE" stroke="#0070F2" stroke-width="1.5"/>
+          <text x="22" y="3" fill="#6A6D70" font-size="11">Úloha</text>
+          <path d="M112 -8 L126 1 L112 10 L98 1 Z" fill="#FFF8F3" stroke="#E9730C" stroke-width="1.5"/>
+          <text x="134" y="3" fill="#6A6D70" font-size="11">Potvrzovací brána</text>
+          <rect x="262" y="-8" width="14" height="14" rx="3" fill="#F5FAF5" stroke="#256F3A" stroke-width="1.5"/>
+          <text x="284" y="3" fill="#6A6D70" font-size="11">Akceptační brána</text>
+          <circle cx="422" cy="-1" r="7" fill="#FFFFFF" stroke="#256F3A" stroke-width="1.6"/>
+          <text x="436" y="3" fill="#6A6D70" font-size="11">Začátek / konec</text>
+          <text x="558" y="3" fill="#6A6D70" font-size="11">Ikona: postava = člověk · kolo = automat</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- ══════════════════ INFO KARTY ══════════════════ -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-header"><span class="card-dot" style="background:#0070F2"></span><h3>Než začneš</h3></div>
+        <ul>
+          <li>• <code>gh auth status</code> — přihlášený</li>
+          <li>• <code>git --version</code> — dostupné</li>
+          <li>• Cílové cesty <strong>neexistují</strong></li>
+          <li>• Víš, kam patří binární mirror</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-dot" style="background:#E9730C"></span><h3>Dvě potvrzení</h3></div>
+        <ul>
+          <li>• FÁZE 5 — zakládá repo v organizaci</li>
+          <li>• FÁZE 6 — mění ochranu <code>main</code></li>
+          <li>• Obě navenek působící a nevratné</li>
+          <li>• Claude vypíše přesný příkaz předem</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-dot" style="background:#256F3A"></span><h3>Hotovo, když</h3></div>
+        <ul>
+          <li>• <code>Test-Topology.ps1</code> → <code>GATE PROSEL</code></li>
+          <li>• Přímý push do <code>main</code> vrátí <code>GH006</code></li>
+          <li>• <code>_dev</code>, <code>_assets</code>, <code>CONTEXT</code> vedou správně</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ══════════════════ MANUÁL ══════════════════ -->
+
+    <div class="section">
+      <h2><span class="num">1</span> Otevřít wizard</h2>
+      <p class="lead">Jeden self-contained HTML soubor. Žádná instalace, žádný build.</p>
+      <pre><code>C:\Users\licka\OneDrive - ARICOMA\Prace\projekty\00_TOOLS\StrukturaProjektuV4\struktura-wizard.html</code></pre>
+      <p>Otevři ho dvojklikem v prohlížeči. Běží přes <code>file://</code> — odtud si sám odvodí, kde leží složka <code>assets\</code> se šablonami.</p>
+      <div class="note warn">
+        <span class="t">Když wizard nespustíš z disku</span>
+        Pokud si vlastní umístění neodvodí, použije zabudovanou záložní cestu a <strong>napíše to přímo do promptu</strong>. V takovém případě ověř, že na uvedené cestě složka <code>assets\</code> opravdu je.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="num">2</span> Vyplnit 11 kroků</h2>
+      <p class="lead">Wizard tě provede metadaty, business kontextem, plánem a topologií.</p>
+
+      <h3>Pole, na kterých záleží nejvíc</h3>
+      <table>
+        <thead><tr><th>Pole</th><th>Co s ním</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">Datum + krátký název</td><td>Skládá <code>PROJECT_ID</code> ve tvaru <code>YYYYMMDD_KratkyNazev</code>. Objeví se v cestách i v názvu repa.</td></tr>
+          <tr><td class="mono">Typ projektu</td><td><code>ZAK</code> = zákaznický (má úroveň zákazníka), <code>INT</code> = interní (úroveň zákazníka <strong>nemá</strong>).</td></tr>
+          <tr><td class="mono">Kořen binárního mirroru</td><td><strong>Povinné.</strong> Vyber z připravených presetů — nikdy nepiš ručně a nedopočítávej z názvu zákazníka.</td></tr>
+          <tr><td class="mono">GitHub org / repo / private</td><td>Organizace, ve které repo vznikne. Výchozí <code>ARICOMAAEA</code>, výchozí viditelnost private.</td></tr>
+          <tr><td class="mono">Jméno pro branch ruleset</td><td><strong>Povinné.</strong> Křestní jméno malými písmeny (<code>vojta</code>) — použije se jako příklad názvu větve v <code>CONTRIBUTING.md</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note stop">
+        <span class="t">Dva různé OneDrive kořeny — nikdy nedopočítávat</span>
+        Většina zákazníků leží pod <code>9999Claude\Zakaznici\</code>, ale KOFOLA pod <code>9999Claude\SAP Service - Projekty\Zakaznici\</code>. Přesně proto jsou v wizardu presety. Odhad podle názvu zákazníka vede na neexistující cestu a junction <code>_assets</code> pak míří nikam.
+      </div>
+
+      <div class="note">
+        <span class="t">Chybí povinný vstup?</span>
+        Bez kořene mirroru nebo bez jména pro ruleset wizard vygeneruje prompt s varovnou hlavičkou <code>!! NEDOKONCENY VSTUP</code>. Takový prompt <strong>nespouštěj</strong> — vrať se do wizardu, doplň a zkopíruj znovu.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="num">3</span> Zkopírovat prompt</h2>
+      <p class="lead">Poslední krok wizardu má dvě záložky.</p>
+      <ul>
+        <li><strong>Strom</strong> — náhled struktury, kterou projekt dostane. Jen ke kontrole.</li>
+        <li><strong>Claude Code Prompt</strong> — to, co se kopíruje. Tlačítko <em>Kopírovat</em>.</li>
+      </ul>
+      <p>Prompt je self-contained až na jednu věc: odkazuje se na složku <code>assets\</code> v repu nástroje, odkud se kopírují skripty a šablony. Repo nástroje proto musí být dostupné.</p>
+    </div>
+
+    <div class="section">
+      <h2><span class="num">4</span> Spustit v Claude Code</h2>
+      <p class="lead">Vlož prompt do nové session. Claude projde osm fází v pevném pořadí.</p>
+      <table>
+        <thead><tr><th>Fáze</th><th>Co se stane</th><th>Potvrzení</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td>Preflight — <code>gh auth status</code>, <code>git --version</code>, kontrola že cílové cesty neexistují</td><td>—</td></tr>
+          <tr><td class="mono">1</td><td>Vytvoří tři prázdné kořeny: projektová vrstva, execution vrstva, binární mirror</td><td>—</td></tr>
+          <tr><td class="mono">2</td><td>Obsah projektové vrstvy — celá struktura, hlavní <code>.md</code>, stuby a <code>repos.json</code></td><td>—</td></tr>
+          <tr><td class="mono">3</td><td>V4 nadstavba — <code>scripts\</code>, <code>.github\</code>, <code>.gitignore</code>, <code>.gitattributes</code>, <code>CHANGELOG.md</code>, pak <code>REPOS.md</code></td><td>—</td></tr>
+          <tr><td class="mono">4</td><td><code>git init -b main</code> + první lokální commit</td><td>—</td></tr>
+          <tr><td class="mono">5</td><td><code>gh repo create … --push</code> — zakládá repo v organizaci</td><td><strong>ANO</strong></td></tr>
+          <tr><td class="mono">6</td><td>Branch protection na <code>main</code> + ruleset <code>personal-branch-naming</code></td><td><strong>ANO</strong></td></tr>
+          <tr><td class="mono">7</td><td><code>bootstrap.ps1</code> — junctiony <code>_dev</code>, <code>_assets</code> a reverzní <code>CONTEXT</code></td><td>—</td></tr>
+          <tr><td class="mono">8</td><td><code>Test-Topology.ps1</code> — akceptační brána, 9 kontrol</td><td>—</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note warn">
+        <span class="t">Pořadí 4 → 5 → 6 je závazné</span>
+        Branch protection se zapíná až <strong>po</strong> prvním pushi. Na prázdný <code>main</code> by push s už zapnutou ochranou neprošel.
+      </div>
+
+      <h3>Ve FÁZI 3 se tě Claude zeptá na GitHub username</h3>
+      <p>Jsou to <strong>dvě různé identity</strong> a nesmí se slít:</p>
+      <table>
+        <thead><tr><th>Symbol</th><th>Co to je</th><th>Příklad</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">{{BRANCH_OWNER}}</td><td>Křestní jméno pro názvy větví, <strong>bez</strong> <code>@</code></td><td class="mono">vojta</td></tr>
+          <tr><td class="mono">@{{GITHUB_OWNER}}</td><td>GitHub účet v <code>CODEOWNERS</code>, <strong>s</strong> <code>@</code></td><td class="mono">@VojtechLickaAEA</td></tr>
+        </tbody>
+      </table>
+      <p>Účet musí mít v cílové organizaci alespoň <code>write</code> přístup — jinak GitHub ten řádek v <code>CODEOWNERS</code> tiše ignoruje. Pokud username neznáš, nech zástupný symbol být a dořeš to později; Claude ho nemá hádat.</p>
+    </div>
+
+    <div class="section">
+      <h2><span class="num">5</span> Ověřit hotový projekt</h2>
+      <p class="lead">Akceptační brána musí projít, jinak projekt není hotový.</p>
+      <pre><code>powershell -File "&lt;PROJECT_ROOT&gt;\scripts\Test-Topology.ps1" -ExpectedRemote "ARICOMAAEA/&lt;REPO&gt;"</code></pre>
+      <p>Očekávaný výstup: <code>GATE PROSEL — 9 kontrol OK</code>.</p>
+      <div class="note warn">
+        <span class="t">Vždy s <code>-ExpectedRemote</code></span>
+        Bez tohoto přepínače dá kontrola 8 výsledek <code>SKIP</code> a brána nahlásí <code>GATE PROSEL</code>, aniž by remote skutečně ověřila.
+      </div>
+      <p>Ruční kontrola, že ochrana funguje — přímý push do <code>main</code> musí selhat:</p>
+      <pre><code>GH006: Protected branch update failed</code></pre>
+      <div class="note ok">
+        <span class="t">Co brána nekontroluje</span>
+        <code>Test-Topology.ps1</code> ověřuje topologii (manifest, kořeny, junctiony, git, remote) — <strong>ne</strong> obsah knowledge souborů. Že vznikly všechny <code>.md</code>, si projdi očima proti záložce <em>Strom</em>.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="num">6</span> Na co si dát pozor</h2>
+      <p class="lead">Věci, které v tomto nástroji reálně kously.</p>
+
+      <h3>Ruleset názvů větví nechrání</h3>
+      <p>Ruleset <code>personal-branch-naming</code> se ve FÁZI 6 zakládá, ale na plánu <strong>team</strong> se <strong>nevynucuje</strong>. Pravidlo <code>branch_name_pattern</code> patří mezi <em>metadata restrictions</em>, které GitHub nabízí až na plánu <strong>Enterprise</strong>. Na nižším plánu API payload tiše přijme, ruleset vytvoří a hlásí jako aktivní — ale push větve mimo vzor projde.</p>
+      <ul>
+        <li>Jediná skutečně vynucená ochrana je <strong>branch protection na <code>main</code></strong>.</li>
+        <li>Konvenci <code>&lt;jmeno&gt;/&lt;co-dela&gt;</code> drží <code>.github\CONTRIBUTING.md</code> jako dohodu mezi lidmi.</li>
+        <li>Ruleset se zakládá dál — po přechodu organizace na Enterprise začne vynucovat sám.</li>
+      </ul>
+
+      <h3>Asymetrie cest je záměrná</h3>
+      <table>
+        <thead><tr><th>Vrstva</th><th>Tvar cesty</th></tr></thead>
+        <tbody>
+          <tr><td>Projektová</td><td class="mono">C:\PROJECT\ZAKAZNICI\&lt;CUSTOMER&gt;\&lt;PID&gt;</td></tr>
+          <tr><td>Projektová (interní)</td><td class="mono">C:\PROJECT\INTERNI\&lt;PID&gt;</td></tr>
+          <tr><td>Execution</td><td class="mono">C:\DEV\Claude\Zakaznici\&lt;CUSTOMER&gt;\&lt;PID&gt;</td></tr>
+        </tbody>
+      </table>
+      <p>Projektová vrstva má segment <strong>velkými</strong>, execution vrstva <strong>s velkým počátečním</strong>. Zrcadlí to reálné složky na disku — nesjednocovat.</p>
+
+      <h3>UTF-8 BOM — jen kde je potřeba</h3>
+      <p>BOM potřebují soubory, které PowerShell 5.1 čte zpátky <strong>bez</strong> explicitního <code>-Encoding</code>:</p>
+      <ul>
+        <li><code>repos.json</code> a <code>REPOS.md</code> — <strong>s BOM</strong></li>
+        <li><code>STALE.md</code> — <strong>bez BOM</strong> (<code>check-drift.ps1</code> ho čte s explicitním <code>-Encoding UTF8</code>)</li>
+        <li>ostatní <code>.md</code> — nerozhoduje, čte je člověk a Claude</li>
+      </ul>
+      <p>Plošné přidání BOM všem <code>.md</code> způsobí při prvním <code>check-drift.ps1 -UpdateStale</code> zbytečný diff.</p>
+
+      <h3>Nástroj zakládá jen nové projekty</h3>
+      <p>FÁZE 0 zastaví, pokud kterákoli ze tří cílových cest už existuje. Migrace existujícího projektu do V4 je <strong>samostatná ruční práce</strong> podle KOFOLA receptu, ne úloha pro tento wizard.</p>
+    </div>
+
+    <div class="approval">
+      <div class="field"><span class="lbl">Autor</span><span class="val">p. Lička</span></div>
+      <div class="field"><span class="lbl">Nástroj</span><span class="val">StrukturaProjektuV4 · 2.1.0</span></div>
+      <div class="field"><span class="lbl">Verze</span><span class="val">1.0</span></div>
+      <div class="field"><span class="lbl">Datum</span><span class="val">2026-08-11</span></div>
+      <div class="field"><span class="lbl">Stav</span><span class="status-approved">APPROVED</span></div>
+    </div>
+
+    <p class="footer">BPMN 2.0 · Procesní diagram • Meta Framework V4 • SAP Fiori Design System (Morning Horizon)</p>
+  </div>
+</body>
+</html>

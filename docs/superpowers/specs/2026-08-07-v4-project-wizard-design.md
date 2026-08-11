@@ -106,11 +106,13 @@ Jakýkoli pokus dopočítat cestu z názvu zákazníka by u poloviny projektů s
 1  Tři kořeny       project layer + execution layer + assetsRoot (prázdné)
 2  Obsah            V3 znalostní struktura do C:\PROJECT (generující logika zůstává,
                     mění se jen cílová cesta a blok 08_DEV — viz §3)
-                    08_DEV: repos.json (prázdné repos[]) + generovaný REPOS.md
+                    08_DEV: repos.json (prázdné repos[])
 3  V4 nadstavba     .gitignore, .gitattributes,
                     .github/{CODEOWNERS,CONTRIBUTING.md,PULL_REQUEST_TEMPLATE.md},
                     scripts/{bootstrap,check-drift,Generate-ReposMd,Test-Topology}.ps1,
                     _local/.gitkeep, CHANGELOG.md
+                    → teprve na KONCI fáze: generovaný REPOS.md (potřebuje
+                      Generate-ReposMd.ps1 už na místě, proto nemůže vzniknout ve fázi 2)
 4  git init         + první lokální commit
 5  [POTVRZENÍ]      gh repo create --private  →  git push -u origin main
 6  [POTVRZENÍ]      branch protection + ruleset personal-branch-naming
@@ -131,7 +133,7 @@ Přebírá se beze změny z KOFOLA (spec V4 §6.1):
 | Branch protection na `main` | PR povinný, **i pro adminy** |
 | `required_approving_review_count` | `0` (self-merge OK) |
 | `delete_branch_on_merge` | `true` |
-| Ruleset `personal-branch-naming` | vzor `<branchOwner>/<co-dela>` |
+| Ruleset `personal-branch-naming` | vzor `^[a-z0-9-]+/[a-z0-9-]+\n?$`, tj. **generické** `<jméno>/<co-dělá>` — ne jen `branchOwner`. Topologie počítá s více contributory; ruleset povolující jediné jméno by je vyřadil. `branchOwner` slouží jen jako příklad v `CONTRIBUTING.md`. **Nevynucuje se — viz §11.1.** |
 | `.github/CODEOWNERS` | advisory (`require_code_owner_reviews: false`) |
 
 ## 6. Skripty dodávané do projektu
@@ -248,11 +250,32 @@ Test proběhl nad reálným projektem `INT / 20260807_V4WizardTest` včetně re�
 | Branch protection na `main` odmítne přímý push | ✅ ověřeno — `GH006: Protected branch update failed` |
 | Větev ve tvaru `<jmeno>/<co-dela>` projde | ✅ ověřeno — `vojta/test-protection` pushnuta |
 | `gh api …/rulesets` payload z promptu GitHub přijme | ✅ ověřeno — ruleset vytvořen (`id 20583172`, `enforcement=active`) |
-| **Ruleset technicky odmítne push větve mimo vzor** (§6.1) | ❌ **NEPOTVRZENO** |
+| **Ruleset technicky odmítne push větve mimo vzor** | ❌ **VYVRÁCENO — příčina objasněna 2026-08-10** |
 
-**Detail neověřeného tvrzení:** větev `SpatnyNazev` (mimo vzor `^[a-z0-9-]+/[a-z0-9-]+$`) se **pushnula bez odmítnutí**, přesto že ruleset je `enforcement=active`, `bypass=never` a `gh api repos/…/rules/branches/SpatnyNazev` potvrzuje, že se na ni pravidlo vztahuje. Org plan `team`, repo private.
+**Detail:** větev `SpatnyNazev` (mimo vzor) se **pushnula bez odmítnutí**, přestože ruleset je `enforcement=active`, `bypass=never` a `gh api repos/…/rules/branches/SpatnyNazev` potvrzuje, že se na ni pravidlo vztahuje.
 
-Nejde o chybu generátoru — prompt vytvoří přesně to, co tento spec žádá, a API to přijme. Vypadá to na chování či limit GitHubu u `branch_name_pattern`. **Dokud se to nevyjasní, neopírej se o ruleset jako o vynucenou ochranu.** Vynucená je pouze branch protection na `main`, což je hlavní cíl (D7); ruleset ber jako dokumentaci konvence.
+### Příčina (dohledáno 2026-08-10)
+
+`branch_name_pattern` patří mezi **metadata restrictions**. Dokumentace GitHubu je omezuje na plán Enterprise:
+
+> „Organizations on a GitHub Enterprise plan can access additional rules to control how commit metadata must be formatted."
+> — [Available rules for rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)
+
+Organizace `ARICOMAAEA` je na plánu **`team`** (ověřeno `gh api orgs/ARICOMAAEA --jq .plan.name`). Na nižším plánu GitHub payload **tiše přijme**, ruleset vytvoří a hlásí jako aktivní — ale nevyhodnocuje ho. Odtud rozpor mezi API odpovědí a chováním při pushi.
+
+Nešlo tedy o chybu generátoru ani o nepochopený payload, ale o **licenční limit, který se neprojeví chybovou hláškou**.
+
+**Druhá, nezávislá vada payloadu:** vzor používal holé `$`. Dokumentace u metadata restrictions výslovně požaduje `\n?$` — s holým `$` by pravidlo nefungovalo správně **i na plánu Enterprise**. Opraveno 2026-08-10.
+
+### Rozhodnutí (2026-08-10)
+
+Ruleset se ve fázi 6 **zakládá dál**, s opravenou kotvou. Nic nestojí, nic nerozbije a v okamžiku přechodu organizace na Enterprise začne vynucovat sám bez zásahu do nástroje.
+
+Prompt ale **musí nahlas říct, že se na plánu `team` nevynucuje** — jinak si uživatel odnese falešný pocit ochrany. Hlídá to test `FAZE 6 nevydava ruleset za vynucenou ochranu (plan team ho nevynucuje)`.
+
+**Jediná skutečně vynucená ochrana je branch protection na `main`** (`GH006`), což je hlavní cíl D7. Konvenci názvů větví drží `.github/CONTRIBUTING.md` jako dohodu mezi lidmi, ne GitHub.
+
+Zvažované a zamítnuté alternativy: zrušit ruleset úplně (ztratili bychom automatický přechod na Enterprise); nahradit GitHub Actions workflow (vynucuje až na PR, ne při pushi, a přidává soubor k údržbě + spotřebu Actions minut).
 
 ## 12. Rozsah
 

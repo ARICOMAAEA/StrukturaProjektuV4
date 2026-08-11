@@ -71,7 +71,11 @@ export async function loadWizard(overrides = {}) {
   // na sandbox se dostanou jen `var` a deklarace funkci. `state` (let) a `steps`
   // (const) proto musime vyexportovat explicitne. `this` je na top-levelu
   // vm skriptu globalni objekt kontextu.
-  vm.runInContext('this.state = state; this.steps = steps; this.ASSETS_ROOT_PRESETS = ASSETS_ROOT_PRESETS;', sandbox);
+  vm.runInContext(
+    'this.state = state; this.steps = steps; this.ASSETS_ROOT_PRESETS = ASSETS_ROOT_PRESETS;' +
+    'this.PROMPT_AUTHORED_FILES = PROMPT_AUTHORED_FILES; this.PROMPT_COPIED_FILES = PROMPT_COPIED_FILES;',
+    sandbox
+  );
 
   return sandbox;
 }

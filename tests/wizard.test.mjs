@@ -465,8 +465,21 @@ test('FAZE 6 ruleset vynucuje genericky vzor <jmeno>/<co-dela>, ne jen branchOwn
   fullMetadata(w);
   const p = w.generateClaudePrompt();
   const faze6 = p.slice(p.indexOf('FAZE 6'), p.indexOf('FAZE 7'));
-  assert.ok(faze6.includes('^[a-z0-9-]+/[a-z0-9-]+$'), 'ruleset pattern neni genericky (chybi regex z CONTRIBUTING.md)');
+  // Kotva je `\n?$`, ne hole `$` — dokumentace GitHubu to u metadata restrictions
+  // vyslovne pozaduje. V JSON tele promptu je zapsana jako `\\n?$`.
+  assert.ok(faze6.includes('^[a-z0-9-]+/[a-z0-9-]+\\\\n?$'), 'ruleset pattern neni genericky nebo ma spatnou koncovou kotvu');
   assert.ok(/ZAMERNE GENERICKY|genericky/i.test(faze6), 'text nevysvetluje, ze vzor je genericky pro vsechny contributory');
+});
+
+test('FAZE 6 nevydava ruleset za vynucenou ochranu (plan team ho nevynucuje)', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  const faze6 = p.slice(p.indexOf('FAZE 6'), p.indexOf('FAZE 7'));
+  // Spec par. 11.1: akceptacni test vyvratil, ze ruleset odmitne push mimo vzor.
+  // Prompt to musi rict nahlas, jinak uzivatel spolehne na ochranu, ktera neexistuje.
+  assert.ok(/NEVYNUCUJE/.test(faze6), 'FAZE 6 nikde nerika, ze se ruleset na planu team nevynucuje');
+  assert.ok(/Enterprise/.test(faze6), 'FAZE 6 neuvadi, ze metadata restrictions vyzaduji plan Enterprise');
 });
 
 // --- Finding 5b: kazdy {{TOKEN}} v assets/ musi mit instrukci k substituci v promptu ---
@@ -494,4 +507,78 @@ test('kazdy {{TOKEN}} zastupny symbol v assets/ je zminen v generovanem promptu'
   for (const token of tokens) {
     assert.ok(p.includes(token), `prompt nezminuje zastupny symbol ${token} (chybi instrukce k substituci)`);
   }
+});
+
+// ------------------------------------------------------------------
+// Strom vs. prompt — strom nesmi slibovat soubory, ktere prompt nezalozi.
+// Spec par. 11 pojmenovava presne toto riziko; do 2026-08-10 se stromem
+// prochazelo 17 souboru, o kterych prompt nikde nemluvil.
+// ------------------------------------------------------------------
+
+/** Presety maji ruzne vetve buildTree(), takze kazdy potrebuje vlastni pruchod. */
+const PRESETY = ['Minimal', 'Standard', 'Full'];
+
+test('kazdy soubor ze stromu je v promptu pokryty (vsechny presety)', async () => {
+  for (const preset of PRESETY) {
+    const w = await loadWizard();
+    fullMetadata(w);
+    w.state.delivery.preset = preset;
+
+    // Array.from — pole vracene ze sandboxu ma prototyp z vm realmu
+    // a assert/strict ho jinak odmitne (ERR_ASSERTION).
+    const soubory = Array.from(w.flattenTreeFiles());
+    assert.ok(soubory.length > 0, `preset ${preset}: strom nevratil zadny soubor`);
+
+    const p = w.generateClaudePrompt();
+    const chybi = soubory.filter((cesta) => {
+      // Folder-description README.md resi vlastni obecna instrukce v promptu.
+      if (cesta.split('/').pop() === 'README.md') return false;
+      // Prompt pise cesty s obracenym lomitkem (Windows), strom s doprednym.
+      return !p.includes(cesta) && !p.includes(cesta.split('/').join('\\'));
+    });
+
+    assert.deepEqual(
+      chybi, [],
+      `preset ${preset}: strom slibuje soubory, ktere prompt nikde nezminuje`
+    );
+  }
+});
+
+test('remainingTreeFiles nevraci nic, co uz prompt sam pise nebo kopiruje', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  w.state.delivery.preset = 'Full';
+
+  const zbytek = w.remainingTreeFiles();
+  const md = Array.from(zbytek.markdown);
+  const ostatni = Array.from(zbytek.other);
+  const vse = md.concat(ostatni);
+
+  for (const cesta of vse) {
+    assert.ok(
+      !Array.from(w.PROMPT_AUTHORED_FILES).includes(cesta),
+      `${cesta} je zaroven v PROMPT_AUTHORED_FILES i ve zbytku — dvoji instrukce`
+    );
+    assert.ok(
+      !Array.from(w.PROMPT_COPIED_FILES).includes(cesta),
+      `${cesta} je zaroven v PROMPT_COPIED_FILES i ve zbytku — stub by prepsal kopii`
+    );
+    assert.notEqual(cesta.split('/').pop(), 'README.md', `${cesta} patri pod folder-description instrukci`);
+  }
+
+  assert.ok(md.every((f) => f.endsWith('.md')), 'v markdown vetvi je soubor, ktery neni .md');
+  assert.ok(ostatni.every((f) => !f.endsWith('.md')), 'v other vetvi je .md soubor');
+  // Non-markdown soubory (settings.json, session-guard.ps1) se nesmi stubovat naslepo.
+  assert.ok(ostatni.length > 0, 'ocekavam aspon settings.json — over, jestli se strom nezmenil');
+});
+
+test('prompt dava CLAUDE.md telo, ne jen sekce k pripojeni', async () => {
+  const w = await loadWizard();
+  fullMetadata(w);
+  const p = w.generateClaudePrompt();
+  assert.ok(p.includes('#### CLAUDE.md (root)'), 'prompt nevytvari CLAUDE.md, jen do nej pripisuje');
+  // Sekce "za existujici sekce" davaji smysl jen kdyz telo vznikne driv.
+  const telo = p.indexOf('#### CLAUDE.md (root)');
+  const sekce = p.indexOf('#### CLAUDE.md — Discovery sections');
+  if (sekce > -1) assert.ok(telo < sekce, 'discovery sekce se pripojuji driv, nez CLAUDE.md vznikne');
 });

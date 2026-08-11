@@ -813,7 +813,7 @@ function renderStepTopology() {
   return html;
 }
 
-function renderStep9() {
+function renderStepOutput() {
   let html = sectionHeader('Vystup', 'Vygenerovany vystup. Zkopirujte prompt.');
 
   // Tabs
@@ -1061,7 +1061,8 @@ function buildTree() {
   ]});
   tree.children.push({ name: '_dev', type: 'dir', children: [] });
   tree.children.push({ name: '_assets', type: 'dir', children: [] });
-  tree.children.push({ name: '_local', type: 'dir', children: [] });
+  // .gitkeep drzi jinak prazdnou (a git-ignorovanou) slozku v repu — prompt ho vytvari ve FAZI 3.
+  tree.children.push({ name: '_local', type: 'dir', children: [{ name: '.gitkeep', type: 'file' }] });
 
   // Root files
   tree.children.push({ name: 'README.md', type: 'file' });
@@ -1085,6 +1086,52 @@ function buildTree() {
   }
 
   return tree;
+}
+
+/** Ploche cesty vsech SOUBORU ve stromu, oddelovac '/'. Poradi = poradi ve stromu. */
+function flattenTreeFiles(node, prefix) {
+  if (!node) node = buildTree();
+  const base = prefix === undefined ? '' : (prefix ? prefix + '/' + node.name : node.name);
+  if (node.type === 'file') return [base];
+  const out = [];
+  (node.children || []).forEach(child => {
+    out.push.apply(out, flattenTreeFiles(child, prefix === undefined ? '' : base));
+  });
+  return out;
+}
+
+/** Soubory, pro ktere prompt sam dodava obsah (sekce "#### <cesta>" vyse). */
+const PROMPT_AUTHORED_FILES = [
+  'README.md', 'ContextQuick.md', 'CLAUDE.md', 'PROJECT_STATUS.md',
+  'ID_REGISTRY.md', 'TOPIC_MAP.md', 'GLOSSARY.md', 'STALE.md',
+  '00_PROJECT_CONTROL/01_BUSINESS/BUSINESS.md',
+  '00_PROJECT_CONTROL/05_PLAN/PLAN.md',
+  '00_PROJECT_CONTROL/08_DEV/repos.json',
+  '20_SHARED_REFERENCE/22_STANDARDS/TAGS.md',
+  '20_SHARED_REFERENCE/23_NAMING_CONVENTIONS/README.md',
+];
+
+/** Soubory, ktere FAZE 3 kopiruje z assets/ nebo generuje skriptem. */
+const PROMPT_COPIED_FILES = [
+  'scripts/bootstrap.ps1', 'scripts/check-drift.ps1',
+  'scripts/Generate-ReposMd.ps1', 'scripts/Test-Topology.ps1',
+  '.github/CODEOWNERS', '.github/CONTRIBUTING.md', '.github/PULL_REQUEST_TEMPLATE.md',
+  '.gitignore', '.gitattributes', '_local/.gitkeep', 'CHANGELOG.md',
+  '00_PROJECT_CONTROL/08_DEV/REPOS.md',
+];
+
+/** Soubory ze stromu, ktere prompt jinde nepokryva — musi vzniknout jako stub.
+ *  Folder-description README.md resi vlastni obecna instrukce, proto se vyrazuji.
+ *  Deli se na .md (stub s YAML hlavickou) a ostatni (nelze slepe stubovat). */
+function remainingTreeFiles() {
+  const covered = {};
+  PROMPT_AUTHORED_FILES.concat(PROMPT_COPIED_FILES).forEach(f => { covered[f] = true; });
+  const rest = flattenTreeFiles().filter(p =>
+    !covered[p] && p.split('/').pop() !== 'README.md');
+  return {
+    markdown: rest.filter(p => p.endsWith('.md')),
+    other: rest.filter(p => !p.endsWith('.md')),
+  };
 }
 
 function buildTreeHtml(node, prefix, isLast) {
@@ -1126,14 +1173,15 @@ function bulletList(arr, fallback) {
 const TOOL_ROOT_FALLBACK = 'C:\\Users\\licka\\OneDrive - ARICOMA\\Prace\\projekty\\00_TOOLS\\StrukturaProjektuV4';
 
 /** Odvodi absolutni cestu ke slozce nastroje z location (bezi pres file://).
- *  Kdyz to nejde, vrati fallback — a volajici to viditelne oznami. */
+ *  Kdyz to nejde, vrati fallback — a volajici to viditelne oznami (spec par. 6.1).
+ *  Vraci { path, isFallback } — samotna cesta nerekne, jestli je odvozena nebo hadana. */
 function getToolRoot() {
   try {
     const p = decodeURIComponent(location.pathname).replace(/^\//, '').replace(/\//g, '\\');
     const dir = p.slice(0, p.lastIndexOf('\\'));
-    if (dir && /:\\/.test(dir)) return dir;
+    if (dir && /:\\/.test(dir)) return { path: dir, isFallback: false };
   } catch (e) { /* file:// neni k dispozici (testy, http) */ }
-  return TOOL_ROOT_FALLBACK;
+  return { path: TOOL_ROOT_FALLBACK, isFallback: true };
 }
 
 function generateClaudePrompt() {
@@ -1441,6 +1489,72 @@ ${state.plan.risks.filter(r => r.risk).length ? '| Riziko | P | D | Mitigace |\n
 
 _Zadne._
 \`\`\`
+
+#### CLAUDE.md (root)
+\`\`\`markdown
+# CLAUDE.md — ${pid}
+
+> Instrukce pro Claude Code v tomto projektu. Nadrazena je globalni \\\`~\\.claude\\CLAUDE.md\\\`;
+> tento soubor ji doplnuje o projektova specifika, neprepisuje ji.
+
+## Identita projektu
+
+| Polozka | Hodnota |
+|---|---|
+| PROJECT_ID | ${pid} |
+| Nazev | ${m.fullName || pid} |
+| Typ | ${m.projectType}${m.projectType === 'ZAK' ? ` (zakaznik: ${m.customer})` : ''} |
+| Rezim | ${m.mode} |
+| Projektova vrstva | \\\`${pRoot}\\\` (git repo \\\`${repoFull}\\\`) |
+| Execution vrstva | \\\`${eRoot}\\\` (dostupna pres junction \\\`_dev\\\`) |
+| Binarni mirror | \\\`${aRoot}\\\` (dostupny pres junction \\\`_assets\\\`) |
+
+## Topologie — kam co patri
+
+- **Projektova vrstva** (tento repo): dokumentace, analyzy a self-contained HTML k prohlizeni.
+  Bez build stepu, bez dependencies.
+- **Execution vrstva** (\\\`_dev\\\`): vse, co se buildi, deployuje nebo bezi — aplikace, skripty,
+  notebooky, binarky. **Nikdy to neukladej do projektove vrstvy.**
+- **Binarni mirror** (\\\`_assets\\\`): jen binarky (.mp4, .xlsx, .pdf, .pptx, .vsdx, screenshoty).
+  Zadny \\\`.md\\\`.
+
+\\\`_dev\\\`, \\\`_assets\\\` a \\\`_local\\\` jsou git-ignorovane — necti je jako soucast repa.
+
+## Session protokol
+
+1. Na zacatku: \\\`PROJECT_STATUS.md\\\` -> \\\`ContextQuick.md\\\`.
+2. Behem prace: kazdy novy \\\`.md\\\` dostane YAML origin hlavicku (viz nize).
+3. Na konci: spustit \\\`/zvl_end-session\\\` — zapise blok do \\\`PROJECT_HISTORY.md\\\`
+   a navrhne aktualizaci \\\`PROJECT_STATUS.md\\\` ke schvaleni.
+
+## Git pravidla
+
+- \\\`main\\\` je chraneny — **nikdy do nej necommituj primo**. Push bude odmitnut (GH006).
+- Prace vzdy na vetvi \\\`<jmeno>/<co-delam>\\\` (napr. \\\`${m.branchOwner}/br-001-analyza\\\`),
+  merge pres pull request. Detaily v \\\`.github/CONTRIBUTING.md\\\`.
+- Binarky do repa nepatri — patri do \\\`_assets\\\`.
+
+## Povinna YAML hlavicka noveho .md
+
+\\\`\\\`\\\`yaml
+---
+created: YYYY-MM-DD HH:MM
+author: <kdo zadal>
+origin_type: meeting | extraction | analysis | manual | template | merge
+origin_source: <z ceho soubor vznikl>
+purpose: <proc soubor existuje — jedna veta>
+---
+\\\`\\\`\\\`
+
+Vyjimka: generovane indexy (\\\`ContextQuick.md\\\`, \\\`souhrnGPT.md\\\`, \\\`REPOS.md\\\`),
+\\\`CHANGELOG.md\\\`, \\\`PROJECT_HISTORY.md\\\` a \\\`CLAUDE.md\\\` samotny.
+
+## Co Claude nesmi bez potvrzeni
+
+- Zakladat nebo mazat GitHub repozitare, menit nastaveni ochrany vetve \\\`main\\\`.
+- Prepisovat \\\`repos.json\\\` (je to evidence — zmenu navrhni, neprovadej).
+- Rusit junctiony \\\`_dev\\\` / \\\`_assets\\\` / \\\`CONTEXT\\\`.
+\`\`\`
 `;
 
   // Discovery layer files (non-Minimal only)
@@ -1694,7 +1808,7 @@ Pro KAZDOU strukturalni slozku vytvor README.md typu folder-description: 00_PROJ
 \`\`\`markdown
 ---
 created: ${today}
-author: ${m.fullName || pid}
+author: ${m.branchOwner || '<jmeno zadavatele>'}
 origin_type: template
 origin_source: Meta Framework V4 init
 purpose: Popis ucelu slozky <NAZEV>
@@ -1717,11 +1831,41 @@ status: active
 <pravidlo zmeny>
 \`\`\`
 
+${(function () {
+  const rest = remainingTreeFiles();
+  if (!rest.markdown.length && !rest.other.length) return '';
+  let s = `\n#### Zbyvajici soubory ze stromu\n\n` +
+    `Strom struktury obsahuje jeste tyto soubory. Prompt pro ne nedodava hotovy obsah,\n` +
+    `ale projekt je dostat MUSI — jinak wizard slibuje strukturu, kterou nikdo nevytvori.\n`;
+  if (rest.markdown.length) {
+    s += `\nVytvor jako **stub**: povinna YAML origin hlavicka (\`created: ${today}\`, ` +
+      `\`author: ${m.branchOwner || '<jmeno zadavatele>'}\`, \`origin_type: template\`, \`origin_source: Meta Framework V4 init\`, ` +
+      `\`purpose: <jedna veta>\`), nadpis H1 a jednoradkovy popis ucelu. ` +
+      `Zadny vymysleny obsah — obsah doplni clovek.\n\n` +
+      rest.markdown.map(f => `- \`${f}\``).join('\n') + '\n';
+  }
+  if (rest.other.length) {
+    s += `\nTyto soubory **nejsou markdown a nelze je slepe stubovat** — prazdny nebo hadany\n` +
+      `obsah by byl horsi nez zadny (\`settings.json\` rozbije Claude Code, hook skript by se\n` +
+      `spoustel). ZEPTEJ SE UZIVATELE, co do nich patri, nebo je nech nevytvorene a uved je\n` +
+      `jako otevrenou polozku v zaveru.\n\n` +
+      rest.other.map(f => `- \`${f}\``).join('\n') + '\n';
+  }
+  return s;
+})()}
 Vyznam vrstev pro obsah README: 01_BUSINESS = PROC (Why); 02_KNOWLEDGE = CO (What); 03_ARCHITECTURE = JAK (How), ADR append-only; 04_ENGINEERING = CIM (With what); 05_PLAN = KDY (When); 06_DATA = Fakta (fakt vs. interpretace); 07_RESOURCE = externi vstupy (nejsou zavazna pravidla); 08_DEV = manifest dev repozitaru (repos.json je jedina pravda, REPOS.md je generovany). 10_DELIVERY = operativni dorucovaci vrstva (caste zmeny). 20_SHARED_REFERENCE = sablony / standardy / naming konvence.
 `;
 
-  const toolRoot = getToolRoot();
+  const tool = getToolRoot();
+  const toolRoot = tool.path;
   const visibility = m.repoPrivate ? '--private' : '--public';
+  // Spec par. 6.1: pouziti fallbacku se musi viditelne oznamit. Tichy fallback by
+  // ve FAZI 3 kopiroval sablony z cizi slozky, kdyz wizard nebezi z rootu nastroje.
+  const toolRootNote = tool.isFallback
+    ? `\n> !! Wizard nedokazal odvodit vlastni umisteni (nebezi pres \`file://\`), takze pouzil\n` +
+      `> zabudovanou zalozni cestu \`${toolRoot}\`. OVER, ze na ni slozka \`assets\\\` skutecne\n` +
+      `> existuje. Kdyz ne, oprav cesty ve FAZI 3 rucne.\n`
+    : '';
 
   prompt += `
 ---
@@ -1750,7 +1894,7 @@ Vytvor prazdne slozky:
 
 ## FAZE 2 — Obsah projektove vrstvy
 Vytvor strukturu a soubory popsane vyse v ${pRoot}.
-V \`00_PROJECT_CONTROL\\08_DEV\\\` vytvor \`repos.json\` s prazdnym seznamem repozitaru:
+Vytvor \`00_PROJECT_CONTROL\\08_DEV\\repos.json\` s prazdnym seznamem repozitaru:
 
 \`\`\`json
 {
@@ -1761,11 +1905,40 @@ V \`00_PROJECT_CONTROL\\08_DEV\\\` vytvor \`repos.json\` s prazdnym seznamem rep
 }
 \`\`\`
 
-DULEZITE: \`repos.json\` cte PowerShell 5.1 — uloz ho jako **UTF-8 s BOM**. Bez BOM ho PS 5.1
-precte pres ANSI codepage a rozbije diakritiku. Totez plati pro vsechny generovane \`.md\`.
+DULEZITE: \`repos.json\` cte PowerShell 5.1 — uloz ho jako **UTF-8 s BOM**.
+
+Pravidlo je uzsi, nez se casto uvadi: BOM potrebuje kazdy soubor, ktery **PS 5.1 cte zpatky
+bez explicitniho \`-Encoding\`** — tam se totiz bez BOM pouzije systemova ANSI codepage
+a diakritika se nenavratne rozbije. Konkretne v tomto projektu:
+
+| Soubor | BOM | Proc |
+|---|---|---|
+| \`repos.json\` | **ANO** | cte ho \`Generate-ReposMd.ps1\` i \`Test-Topology.ps1\` |
+| \`REPOS.md\` | **ANO** | zapisuje \`Generate-ReposMd.ps1\` pres \`Out-File -Encoding utf8\` (v PS 5.1 = s BOM) |
+| \`STALE.md\` | **NE** | \`check-drift.ps1\` ho cte s explicitnim \`-Encoding UTF8\` a zapisuje bez BOM — zamerne, aby byl zapis idempotentni |
+| ostatni \`.md\` | nerozhoduje | cte je clovek a Claude, ne PS 5.1 |
+
+Nepridavej tedy BOM plosne vsem \`.md\` — u \`STALE.md\` by to pri prvnim
+\`check-drift.ps1 -UpdateStale\` zpusobilo zbytecny diff.
+
+Schema \`repos.json\` (JSON neumi komentare, takze je popis tady — a zopakuj ho jako legendu
+v \`00_PROJECT_CONTROL\\08_DEV\\README.md\`):
+
+| Klic | Vyznam |
+|---|---|
+| \`project\` | Nazev GitHub repozitare projektove vrstvy. |
+| \`devRoot\` | Absolutni cesta k execution vrstve (cil junctionu \`_dev\`). |
+| \`assetsRoot\` | Absolutni cesta k binarnimu mirroru (cil junctionu \`_assets\`). |
+| \`repos[]\` | Seznam dev repozitaru — jeden zaznam na aplikaci. |
+
+\`repos.json\` je **evidence, ne synchronizator**: zaznamenava i stavy, ktere spolu nesedi
+(repo v manifestu bez slozky na disku, nebo naopak). Nesjednocuje je a nic nemaze —
+rozpor jen zviditelni \`Generate-ReposMd.ps1\` v \`REPOS.md\` a \`Test-Topology.ps1\` v brane.
+Srovnani je vzdy rozhodnuti cloveka.
 
 ## FAZE 3 — V4 nadstavba
 Zkopiruj sablony ze slozky nastroje **${toolRoot}\\assets\\** do ${pRoot}:
+${toolRootNote}
 
 | Zdroj | Cil |
 |---|---|
@@ -1791,7 +1964,7 @@ CODEOWNERS tise ignoruje. Pokud uzivatel username nezna, zastupny symbol \`{{GIT
 v souboru nech beze zmeny a uveď to jako otevrenou polozku k dořešeni, nehadej ho.
 Dale vytvor \`_local\\.gitkeep\` (prazdny) a \`CHANGELOG.md\` se zaznamem verze \`1.0.0\` dle Keep a Changelog.
 
-Pote, kdyz uz je \`Generate-ReposMd.ps1\` na miste, vygeneruj \`REPOS.md\`:
+Pote, kdyz uz je \`Generate-ReposMd.ps1\` na miste, vygeneruj \`00_PROJECT_CONTROL\\08_DEV\\REPOS.md\`:
 \`\`\`powershell
 powershell -File "${pRoot}\\scripts\\Generate-ReposMd.ps1"
 \`\`\`
@@ -1840,7 +2013,7 @@ gh api repos/${repoFull}/rulesets --method POST --input - <<'EOF'
       "type": "branch_name_pattern",
       "parameters": {
         "operator": "regex",
-        "pattern": "^[a-z0-9-]+/[a-z0-9-]+$",
+        "pattern": "^[a-z0-9-]+/[a-z0-9-]+\\\\n?$",
         "name": "personal-branch-naming",
         "negate": false
       }
@@ -1850,6 +2023,20 @@ gh api repos/${repoFull}/rulesets --method POST --input - <<'EOF'
 EOF
 \`\`\`
 (\`${m.branchOwner}\` je jen priklad jmena pouzity v \`CONTRIBUTING.md\`, napr. \`${m.branchOwner}/br-001-analyza\` — samotny ruleset ho nevynucuje.)
+
+> **POZOR — na planu \`team\` se tento ruleset NEVYNUCUJE.** \`branch_name_pattern\` patri mezi
+> *metadata restrictions*, ktere GitHub nabizi az organizacim na planu **Enterprise**. Na nizsim
+> planu API payload prijme, ruleset se vytvori s \`enforcement=active\` a \`gh api repos/…/rules/branches/<vetev>\`
+> ho i hlasi jako platny — ale push vetve mimo vzor **projde bez odmitnuti**. Overeno akceptacnim
+> testem 2026-08-08 (spec par. 11.1).
+>
+> Zakladej ho presto: nic nestoji, nic nerozbije a v okamziku prechodu organizace na Enterprise
+> zacne vynucovat sam. Ale **neuvadej ho uzivateli jako vynucenou ochranu** — jedina skutecne
+> vynucena vec je branch protection na \`main\` z predchoziho kroku. Konvenci nazvu vetvi drzi
+> \`.github\\CONTRIBUTING.md\`, ne GitHub.
+>
+> (\`\\\\n?$\` na konci vzoru neni preklep — dokumentace GitHubu vyslovne pozaduje tuto kotvu
+> misto holeho \`$\`.)
 
 ## FAZE 7 — Junctiony
 \`\`\`powershell
@@ -2219,7 +2406,7 @@ function render() {
   el('progressLabel').textContent = pct + '%';
 
   // Content
-  const renderers = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6, renderStep7, renderStep8, renderStepTopology, renderStep9];
+  const renderers = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6, renderStep7, renderStep8, renderStepTopology, renderStepOutput];
   const content = el('stepContent');
   content.innerHTML = renderers[step]();
   content.className = 'fade-in';
